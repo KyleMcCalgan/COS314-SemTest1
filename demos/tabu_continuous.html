@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tabu Search — Continuous Landscape Demo</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 15px; line-height: 1.7;
+  background: #12141c; color: #d4d0c8; padding: 20px; }
+
+canvas { display: block; width: 100%; border-radius: 6px; }
+
+.demo-stats { display: flex; justify-content: center; gap: 24px; font-size: 13px; margin: 10px 0 6px; }
+.demo-stat { text-align: center; }
+.demo-sv { font-size: 18px; font-weight: 600; color: #e0d8c8; }
+.demo-sl { font-size: 10px; color: #605850; text-transform: uppercase; letter-spacing: .06em; }
+
+.demo-ctrl { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin: 10px 0 4px; }
+.demo-ctrl button {
+  padding: 5px 16px; border-radius: 6px; font-size: 12px;
+  border: 1px solid #303040; background: transparent; color: #a0988a; cursor: pointer; }
+.demo-ctrl button:hover { background: #1c1f2b; color: #e0d8c8; }
+.demo-ctrl button.pri { background: #1e1c38; color: #9890d8; border-color: #534AB7; }
+.demo-ctrl button.pri:hover { background: #2a2850; }
+
+.demo-log { background: #0e1018; border: 1px solid #1e2028; border-radius: 6px;
+  padding: 8px 12px; font-size: 12px; color: #706858; min-height: 36px; margin: 8px 0; line-height: 1.6; }
+
+.demo-legend { display: flex; gap: 10px 18px; justify-content: center; flex-wrap: wrap;
+  font-size: 11px; color: #605850; margin: 6px 0; }
+.demo-legend .li { display: flex; align-items: center; gap: 4px; }
+.demo-legend .lb { width: 12px; height: 12px; border-radius: 3px; border: 1.5px solid transparent; }
+</style>
+</head>
+<body>
+
+<canvas id="tc-canvas" height="260"></canvas>
+<div class="demo-stats" style="margin-top:10px">
+  <div class="demo-stat"><div class="demo-sv" id="tc-iter">0</div><div class="demo-sl">iteration</div></div>
+  <div class="demo-stat"><div class="demo-sv" id="tc-cur">—</div><div class="demo-sl">current</div></div>
+  <div class="demo-stat"><div class="demo-sv" id="tc-best">—</div><div class="demo-sl">best</div></div>
+</div>
+<div class="demo-legend">
+  <div class="li"><div class="lb" style="background:#534AB7;height:3px;width:16px;border-radius:2px"></div>path</div>
+  <div class="li"><div class="lb" style="background:#a83030;opacity:.4"></div>tabu zone</div>
+  <div class="li"><svg width="12" height="12"><polygon points="6,1 11,11 1,11" fill="#1D9E75"/></svg>global best</div>
+  <div class="li"><svg width="12" height="12"><circle cx="6" cy="6" r="5" fill="#a06010"/></svg>current</div>
+</div>
+<div class="demo-log" id="tc-log">Press Step to watch tabu search navigate the continuous landscape.</div>
+<div class="demo-ctrl">
+  <button onclick="tcReset()">Reset</button>
+  <button class="pri" id="tc-btn" onclick="tcStep()">Step →</button>
+  <button id="tc-auto" onclick="tcAuto()">Auto-run</button>
+</div>
+
+<script>
+const tcCV=document.getElementById('tc-canvas');
+const tcCtx=tcCV.getContext('2d');
+const W=800,H=260,PAD=44;
+tcCV.width=W; tcCV.height=H;
+
+function tcF(x){
+  const t=(x-PAD)/(W-2*PAD);
+  return 0.18*Math.sin(t*Math.PI*2.1+0.3)
+       + 0.22*Math.sin(t*Math.PI*3.7+1.1)
+       + 0.12*Math.sin(t*Math.PI*7+2)
+       + 0.08*Math.cos(t*Math.PI*11)
+       + 0.3*(t-0.5)*(t-0.5)*0.6
+       - 0.1*Math.sin(t*Math.PI*1.3);
+}
+function tcSY(v){const mn=-0.45,mx=0.55;return PAD+10+(v-mn)/(mx-mn)*(H-PAD*2-10);}
+
+let tcState={}, tcTimer=null;
+
+function tcReset(){
+  clearInterval(tcTimer);tcTimer=null;
+  document.getElementById('tc-auto').textContent='Auto-run';
+  document.getElementById('tc-btn').textContent='Step →';
+  tcState={x:PAD+18,bestX:PAD+18,bestY:tcF(PAD+18),tabu:[],path:[],iter:0,done:false};
+  tcState.path.push([PAD+18,tcF(PAD+18)]);
+  document.getElementById('tc-log').textContent='Press Step to watch tabu search navigate the continuous landscape.';
+  tcDraw();
+}
+
+function tcStep(){
+  if(tcState.done)return;
+  const s=tcState; s.iter++;
+  const step=26;
+  const cands=[];
+  for(let i=0;i<8;i++){const dx=(Math.random()*2-1)*step;const nx=Math.max(PAD+2,Math.min(W-PAD-2,s.x+dx));cands.push(nx);}
+  let chosen=null,chosenY=Infinity;
+  for(const cx of cands){
+    const cy=tcF(cx);
+    const isTb=s.tabu.some(z=>Math.abs(cx-z.x)<z.r&&z.life>0);
+    if(!isTb&&cy<chosenY){chosenY=cy;chosen=cx;}
+    else if(isTb&&cy<s.bestY){chosen=cx;chosenY=cy;}
+  }
+  if(!chosen)chosen=cands[0];
+  s.tabu.push({x:s.x,r:step*0.6,life:4});
+  s.tabu.forEach(z=>z.life--);
+  s.tabu=s.tabu.filter(z=>z.life>0);
+  s.x=chosen; s.path.push([chosen,tcF(chosen)]);
+  if(tcF(chosen)<s.bestY){s.bestY=tcF(chosen);s.bestX=chosen;}
+  document.getElementById('tc-iter').textContent=s.iter;
+  document.getElementById('tc-cur').textContent=tcF(s.x).toFixed(3);
+  document.getElementById('tc-best').textContent=s.bestY.toFixed(3);
+  document.getElementById('tc-log').textContent=`Iter ${s.iter}: moved to x=${Math.round(s.x-PAD)}, cost=${tcF(s.x).toFixed(3)}. Tabu zones: ${s.tabu.length}. Best: ${s.bestY.toFixed(3)}.`;
+  if(s.iter>=25){s.done=true;document.getElementById('tc-btn').textContent='Done';document.getElementById('tc-log').textContent=`Search complete. Best cost: ${s.bestY.toFixed(3)} at x=${Math.round(s.bestX-PAD)}.`;}
+  tcDraw();
+}
+
+function tcAuto(){
+  if(tcTimer){clearInterval(tcTimer);tcTimer=null;document.getElementById('tc-auto').textContent='Auto-run';}
+  else{document.getElementById('tc-auto').textContent='Pause';tcTimer=setInterval(()=>{if(tcState.done){clearInterval(tcTimer);tcTimer=null;document.getElementById('tc-auto').textContent='Auto-run';}else tcStep();},420);}
+}
+
+function tcDraw(){
+  const s=tcState;
+  tcCtx.fillStyle='#0e1018'; tcCtx.beginPath(); tcCtx.roundRect(0,0,W,H,8); tcCtx.fill();
+  tcCtx.strokeStyle='#1a1c24'; tcCtx.lineWidth=0.5;
+  for(let gx=PAD;gx<=W-PAD;gx+=70){tcCtx.beginPath();tcCtx.moveTo(gx,PAD);tcCtx.lineTo(gx,H-PAD+8);tcCtx.stroke();}
+  tcCtx.strokeStyle='rgba(255,255,255,0.1)';tcCtx.lineWidth=1;
+  tcCtx.beginPath();tcCtx.moveTo(PAD,H-PAD+8);tcCtx.lineTo(W-PAD,H-PAD+8);tcCtx.stroke();
+  tcCtx.fillStyle='rgba(255,255,255,0.25)';tcCtx.font='11px sans-serif';tcCtx.textAlign='center';
+  tcCtx.fillText('x (search space)',W/2,H-6);
+  s.tabu.forEach(z=>{
+    const alpha=(z.life/4)*0.18;
+    tcCtx.fillStyle=`rgba(168,48,48,${alpha})`;
+    tcCtx.strokeStyle=`rgba(168,48,48,${alpha*2})`;
+    tcCtx.lineWidth=1;
+    tcCtx.beginPath();tcCtx.roundRect(z.x-z.r,PAD,z.r*2,H-PAD*2-10,4);tcCtx.fill();tcCtx.stroke();
+  });
+  tcCtx.strokeStyle='#504848';tcCtx.lineWidth=2;
+  tcCtx.beginPath();
+  for(let x=PAD;x<=W-PAD;x++){const y=tcSY(tcF(x));x===PAD?tcCtx.moveTo(x,y):tcCtx.lineTo(x,y);}
+  tcCtx.stroke();
+  if(s.path.length>1){
+    tcCtx.strokeStyle='rgba(83,74,183,0.6)';tcCtx.lineWidth=2;tcCtx.setLineDash([]);
+    tcCtx.beginPath();s.path.forEach(([px,py],i)=>{i===0?tcCtx.moveTo(px,tcSY(py)):tcCtx.lineTo(px,tcSY(py));});tcCtx.stroke();
+    for(let i=1;i<s.path.length-1;i++){const[px,py]=s.path[i];tcCtx.fillStyle='rgba(83,74,183,0.4)';tcCtx.beginPath();tcCtx.arc(px,tcSY(py),3,0,Math.PI*2);tcCtx.fill();}
+  }
+  const bsy=tcSY(s.bestY);
+  tcCtx.fillStyle='#1D9E75';tcCtx.beginPath();tcCtx.moveTo(s.bestX,bsy-12);tcCtx.lineTo(s.bestX-7,bsy-1);tcCtx.lineTo(s.bestX+7,bsy-1);tcCtx.closePath();tcCtx.fill();
+  tcCtx.strokeStyle='#1c2018';tcCtx.lineWidth=1;tcCtx.setLineDash([3,3]);
+  tcCtx.beginPath();tcCtx.moveTo(s.bestX,bsy);tcCtx.lineTo(s.bestX,H-PAD+8);tcCtx.stroke();tcCtx.setLineDash([]);
+  const csy=tcSY(tcF(s.x));
+  tcCtx.fillStyle='#a06010';tcCtx.strokeStyle='#604008';tcCtx.lineWidth=2;
+  tcCtx.beginPath();tcCtx.arc(s.x,csy,7,0,Math.PI*2);tcCtx.fill();tcCtx.stroke();
+}
+
+tcReset();
+</script>
+</body>
+</html>

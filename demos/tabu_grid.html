@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tabu Search — Grid Demo</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 15px; line-height: 1.7;
+  background: #12141c; color: #d4d0c8; padding: 20px; }
+
+.demo-stats { display: flex; justify-content: center; gap: 24px; font-size: 13px; margin: 0 0 6px; }
+.demo-stat { text-align: center; }
+.demo-sv { font-size: 18px; font-weight: 600; color: #e0d8c8; }
+.demo-sl { font-size: 10px; color: #605850; text-transform: uppercase; letter-spacing: .06em; }
+
+.demo-ctrl { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin: 10px 0 4px; }
+.demo-ctrl button {
+  padding: 5px 16px; border-radius: 6px; font-size: 12px;
+  border: 1px solid #303040; background: transparent; color: #a0988a; cursor: pointer; }
+.demo-ctrl button:hover { background: #1c1f2b; color: #e0d8c8; }
+.demo-ctrl button.pri { background: #1e1c38; color: #9890d8; border-color: #534AB7; }
+.demo-ctrl button.pri:hover { background: #2a2850; }
+
+.demo-log { background: #0e1018; border: 1px solid #1e2028; border-radius: 6px;
+  padding: 8px 12px; font-size: 12px; color: #706858; min-height: 36px; margin: 8px 0; line-height: 1.6; }
+.demo-log b { color: #a09080; }
+
+.demo-legend { display: flex; gap: 10px 18px; justify-content: center; flex-wrap: wrap;
+  font-size: 11px; color: #605850; margin: 6px 0; }
+.demo-legend .li { display: flex; align-items: center; gap: 4px; }
+.demo-legend .lb { width: 12px; height: 12px; border-radius: 3px; border: 1.5px solid transparent; }
+
+.t-grid { display: grid; grid-template-columns: repeat(7, 52px); gap: 3px;
+  justify-content: center; margin: 10px 0; }
+.t-cell { width: 52px; height: 52px; border-radius: 7px; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; border: 1.5px solid transparent; transition: transform .15s; }
+.t-cell .cv { font-size: 15px; font-weight: 600; }
+.t-cell .cc { font-size: 9px; opacity: .5; margin-top: 1px; }
+.t-cell.curr    { background: #1e1c38; border-color: #534AB7; color: #9890d8; transform: scale(1.08); }
+.t-cell.best    { background: #0c2820; border-color: #1D9E75; color: #5DCAA5; }
+.t-cell.tabu    { background: #280c0c; border-color: #a83030; color: #c86060; opacity: .75; }
+.t-cell.neigh   { background: #281c08; border-color: #a06010; color: #c89040; }
+.t-cell.visited { background: #16181e; opacity: .55; color: #504840; }
+
+.tabu-tags { display: flex; gap: 5px; flex-wrap: wrap; min-height: 26px; align-items: center; }
+.tabu-tag { padding: 2px 8px; border-radius: 5px; background: #280c0c; color: #c86060;
+  border: 1px solid #5a2020; font-size: 11px; }
+
+.strat-label { font-size: 10px; font-weight: 600; color: #504840; text-transform: uppercase;
+  letter-spacing: .06em; margin: 10px 0 4px; text-align: center; }
+</style>
+</head>
+<body>
+
+<div class="demo-stats">
+  <div class="demo-stat"><div class="demo-sv" id="ts-iter">0</div><div class="demo-sl">iteration</div></div>
+  <div class="demo-stat"><div class="demo-sv" id="ts-curr">—</div><div class="demo-sl">current cost</div></div>
+  <div class="demo-stat"><div class="demo-sv" id="ts-best">—</div><div class="demo-sl">best cost</div></div>
+  <div class="demo-stat"><div class="demo-sv" id="ts-tabu">0</div><div class="demo-sl">tabu size</div></div>
+</div>
+
+<div class="demo-legend">
+  <div class="li"><div class="lb" style="background:#1e1c38;border-color:#534AB7"></div>current</div>
+  <div class="li"><div class="lb" style="background:#281c08;border-color:#a06010"></div>neighbors</div>
+  <div class="li"><div class="lb" style="background:#0c2820;border-color:#1D9E75"></div>best found</div>
+  <div class="li"><div class="lb" style="background:#280c0c;border-color:#a83030"></div>tabu</div>
+  <div class="li"><div class="lb" style="background:#16181e"></div>visited</div>
+</div>
+
+<div class="t-grid" id="ts-grid"></div>
+
+<div style="max-width:420px;margin:8px auto 0">
+  <div class="strat-label">tabu list (tenure = 3)</div>
+  <div class="tabu-tags" id="ts-tags"><span style="font-size:11px;color:#403830">empty</span></div>
+  <div class="strat-label">log</div>
+  <div class="demo-log" id="ts-log">Press <b>Step</b> to begin. Best-neighbour selection picks the lowest-cost non-tabu adjacent cell each iteration.</div>
+</div>
+
+<div class="demo-ctrl" style="margin-top:12px">
+  <button onclick="tsReset()">Reset</button>
+  <button class="pri" id="ts-btn-step" onclick="tsStep()">Step →</button>
+  <button id="ts-btn-auto" onclick="tsAuto()">Auto-run</button>
+  <span style="font-size:11px;color:#504840;align-self:center">Tenure:
+    <input type="range" min="2" max="8" value="3" step="1" id="ts-tenure"
+      style="width:60px;accent-color:#534AB7;vertical-align:middle"
+      oninput="TS_TENURE=+this.value;document.getElementById('ts-tv').textContent=this.value">
+    <span id="ts-tv" style="color:#a0988a">3</span>
+  </span>
+</div>
+
+<script>
+const ROWS=5,COLS=7;
+let TS_TENURE=3;
+const COSTS=[
+  [18,15,12,20,22,19,25],
+  [14,10, 8,17,21,16,23],
+  [12, 7, 5, 9,14,11,18],
+  [16, 9, 4, 6, 8,12,20],
+  [20,13, 8, 5, 7,15,22],
+];
+const tsKey=(r,c)=>r+','+c;
+let tsState={}, tsTimer=null;
+
+function tsGetNeighbors(r,c){
+  const ns=[];
+  for(const[dr,dc]of[[-1,0],[1,0],[0,-1],[0,1]]){
+    const nr=r+dr,nc=c+dc;
+    if(nr>=0&&nr<ROWS&&nc>=0&&nc<COLS) ns.push([nr,nc]);
+  }
+  return ns;
+}
+
+function tsReset(){
+  clearInterval(tsTimer); tsTimer=null;
+  document.getElementById('ts-btn-auto').textContent='Auto-run';
+  document.getElementById('ts-btn-step').textContent='Step →';
+  tsState={cur:[1,0],best:[1,0],bestVal:COSTS[1][0],tabu:[],visited:new Set(),iter:0,done:false};
+  tsState.visited.add(tsKey(1,0));
+  document.getElementById('ts-log').innerHTML='Press <b>Step</b> to begin. Best-neighbour selection picks the lowest-cost non-tabu adjacent cell each iteration.';
+  tsRender();
+}
+
+function tsStep(){
+  if(tsState.done) return;
+  const s=tsState; s.iter++;
+  const tabuKeys=new Set(s.tabu.map(t=>t.k));
+  const ns=tsGetNeighbors(...s.cur);
+  let chosen=null,chosenCost=Infinity;
+  for(const[r,c] of ns){
+    const k=tsKey(r,c),isTb=tabuKeys.has(k);
+    if(!isTb&&COSTS[r][c]<chosenCost){chosenCost=COSTS[r][c];chosen=[r,c];}
+    else if(isTb&&COSTS[r][c]<s.bestVal){chosenCost=COSTS[r][c];chosen=[r,c];}
+  }
+  if(!chosen) chosen=ns[0];
+  s.tabu.push({k:tsKey(...s.cur),expires:s.iter+TS_TENURE});
+  s.tabu=s.tabu.filter(t=>t.expires>s.iter);
+  s.cur=chosen; s.visited.add(tsKey(...chosen));
+  if(COSTS[chosen[0]][chosen[1]]<s.bestVal){s.bestVal=COSTS[chosen[0]][chosen[1]];s.best=[...chosen];}
+  document.getElementById('ts-log').innerHTML=`<b>Iter ${s.iter}:</b> Moved to (${chosen[0]},${chosen[1]}) cost ${COSTS[chosen[0]][chosen[1]]}. Tabu list: ${s.tabu.length} entries (tenure=${TS_TENURE}).`;
+  if(s.iter>=20){s.done=true;document.getElementById('ts-btn-step').textContent='Done';document.getElementById('ts-log').innerHTML=`Search complete. Best cost: <b>${s.bestVal}</b> at (${s.best[0]},${s.best[1]}).<`;}
+  tsRender();
+}
+
+function tsAuto(){
+  if(tsTimer){clearInterval(tsTimer);tsTimer=null;document.getElementById('ts-btn-auto').textContent='Auto-run';}
+  else{
+    document.getElementById('ts-btn-auto').textContent='Pause';
+    tsTimer=setInterval(()=>{if(tsState.done){clearInterval(tsTimer);tsTimer=null;document.getElementById('ts-btn-auto').textContent='Auto-run';}else tsStep();},550);
+  }
+}
+
+function tsRender(){
+  const s=tsState,g=document.getElementById('ts-grid');
+  g.innerHTML='';
+  const tabuKeys=new Set(s.tabu.map(t=>t.k));
+  const ns=new Set(tsGetNeighbors(...s.cur).map(([r,c])=>tsKey(r,c)));
+  const bk=tsKey(...s.best);
+  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
+    const k=tsKey(r,c),div=document.createElement('div');
+    div.className='t-cell';
+    const isCur=s.cur[0]===r&&s.cur[1]===c;
+    const isTb=tabuKeys.has(k);
+    const isBest=bk===k&&!isCur;
+    const isN=ns.has(k)&&!isCur&&!isTb;
+    const isV=s.visited.has(k)&&!isCur&&!isBest&&!isN&&!isTb;
+    if(isCur)div.classList.add('curr');
+    else if(isTb)div.classList.add('tabu');
+    else if(isBest)div.classList.add('best');
+    else if(isN)div.classList.add('neigh');
+    else if(isV)div.classList.add('visited');
+    div.innerHTML=`<span class="cv">${COSTS[r][c]}</span><span class="cc">(${r},${c})</span>`;
+    g.appendChild(div);
+  }
+  document.getElementById('ts-iter').textContent=s.iter;
+  document.getElementById('ts-curr').textContent=COSTS[s.cur[0]][s.cur[1]];
+  document.getElementById('ts-best').textContent=s.bestVal;
+  document.getElementById('ts-tabu').textContent=s.tabu.length;
+  const tl=document.getElementById('ts-tags');
+  tl.innerHTML=s.tabu.length===0
+    ?'<span style="font-size:11px;color:#403830">empty</span>'
+    :s.tabu.map(t=>`<span class="tabu-tag">${t.k} <span style="opacity:.5">exp ${t.expires}</span></span>`).join('');
+}
+
+tsReset();
+</script>
+</body>
+</html>

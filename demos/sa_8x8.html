@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulated Annealing — 8×8 Grid Demo</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 15px; line-height: 1.7;
+  background: #0f1117; color: #d4d0c8; }
+
+/* CSS variable bridge — maps Claude.ai variables to this dark theme */
+:root {
+  --color-border-secondary:    #252830;
+  --color-border-tertiary:     #1e2028;
+  --color-background-secondary:#1c1f2b;
+  --color-background-primary:  #0f1117;
+  --color-text-primary:        #e0d8c8;
+  --color-text-secondary:      #a0988a;
+  --color-text-tertiary:       #605850;
+  --border-radius-md:          6px;
+  --font-mono: 'Cascadia Code','Fira Mono','Consolas',monospace;
+}
+</style>
+</head>
+<body>
+
+<style>
+.sbtn{cursor:pointer;padding:8px 22px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:transparent;color:var(--color-text-primary);font-size:14px;}
+.sbtn:hover{background:var(--color-background-secondary);}
+.sbtn:disabled{opacity:0.3;cursor:default;}
+.rbtn{cursor:pointer;padding:8px 16px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:transparent;color:var(--color-text-secondary);font-size:13px;}
+.rbtn:hover{background:var(--color-background-secondary);}
+.pill{display:inline-block;font-size:13px;font-weight:500;padding:5px 14px;border-radius:20px;}
+.pill.accept{background:#EAF3DE;color:#27500A;}
+.pill.prob{background:#FAEEDA;color:#633806;}
+.pill.reject{background:#FCEBEB;color:#791F1F;}
+.pill.info{background:#E6F1FB;color:#0C447C;}
+.kv{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:10px;text-align:center;}
+.kv .val{font-size:18px;font-weight:500;color:var(--color-text-primary);}
+.kv .lbl{font-size:11px;color:var(--color-text-secondary);margin-top:2px;}
+.cr{display:flex;align-items:baseline;gap:10px;padding:6px 0;border-bottom:0.5px solid var(--color-border-tertiary);}
+.cr:last-child{border-bottom:none;}
+.cl{font-size:12px;color:var(--color-text-secondary);min-width:130px;flex-shrink:0;}
+.cv2{font-size:14px;color:var(--color-text-primary);font-family:var(--font-mono);}
+.cv2.good{color:#27500A;} .cv2.bad{color:#791F1F;} .cv2.hl{font-weight:500;} .cv2.amber{color:#633806;}
+</style>
+
+<div style="padding:1rem 0.5rem 0.5rem;">
+<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:24px;align-items:start;">
+
+<div>
+  <canvas id="cv" width="320" height="320" style="width:100%;display:block;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-tertiary);"></canvas>
+  <div style="margin-top:10px;">
+    <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:4px;">Temperature T</div>
+    <div style="height:14px;border-radius:7px;background:var(--color-background-secondary);overflow:hidden;">
+      <div id="tbar" style="height:100%;border-radius:7px;transition:width 0.4s,background 0.4s;background:#378ADD;width:100%;"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--color-text-tertiary);margin-top:3px;"><span>cold (0)</span><span>hot (100)</span></div>
+  </div>
+  <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">
+    <div class="kv"><div class="val" id="kv-t">—</div><div class="lbl">Temp T</div></div>
+    <div class="kv"><div class="val" id="kv-cur">—</div><div class="lbl">L(current)</div></div>
+    <div class="kv"><div class="val" id="kv-best">—</div><div class="lbl">L(best)</div></div>
+  </div>
+  <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:10px;">
+    <div style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--color-text-secondary);"><div style="width:12px;height:12px;border-radius:2px;background:#378ADD;flex-shrink:0;"></div>current</div>
+    <div style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--color-text-secondary);"><div style="width:12px;height:12px;border-radius:2px;background:#BA7517;flex-shrink:0;"></div>candidate</div>
+    <div style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--color-text-secondary);"><div style="width:12px;height:12px;border-radius:2px;background:#1D9E75;flex-shrink:0;"></div>best seen</div>
+    <div style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--color-text-secondary);"><div style="width:12px;height:12px;border-radius:50%;border:2px solid #888780;flex-shrink:0;"></div>neighbours</div>
+  </div>
+</div>
+
+<div>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+    <div style="font-size:12px;color:var(--color-text-secondary);" id="sc">—</div>
+    <button class="rbtn" onclick="restart()">New start</button>
+  </div>
+  <div style="font-size:16px;font-weight:500;margin:0 0 14px;color:var(--color-text-primary);" id="stitle">—</div>
+  <div id="calc-box" style="background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:10px 14px;min-height:120px;"></div>
+  <div id="vpill" style="margin-top:10px;"></div>
+  <div style="margin-top:12px;background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:12px 14px;font-size:13px;color:var(--color-text-secondary);line-height:1.7;" id="note">—</div>
+  <div style="display:flex;gap:8px;margin-top:16px;">
+    <button class="sbtn" id="pb" onclick="go(-1)" disabled>Back</button>
+    <button class="sbtn" id="nb" onclick="go(1)">Next</button>
+  </div>
+</div>
+
+</div>
+</div>
+
+<script>
+const GRID=[
+  [12,18,24,30,28,22,16,10],
+  [15,22,35,42,40,33,20,13],
+  [18,30,50,61,58,45,28,17],
+  [20,38,62,80,75,55,35,19],
+  [18,32,54,70,65,50,30,16],
+  [14,25,40,52,48,38,22,12],
+  [10,17,27,36,33,25,15, 9],
+  [ 7,11,16,22,20,14, 9, 5],
+];
+const SIZE=8, CW=320/SIZE;
+function Lv(r,c){return GRID[r][c];}
+function clamp(v,lo,hi){return Math.max(lo,Math.min(hi,v));}
+function rnd(lo,hi){return Math.floor(Math.random()*(hi-lo+1))+lo;}
+function flt(v){return v.toFixed(3);}
+function cellCX(c){return c*CW+CW/2;}
+function cellCY(r){return r*CW+CW/2;}
+
+function getNeighbours(r,c){
+  const nb=[];
+  for(let dr=-1;dr<=1;dr++) for(let dc=-1;dc<=1;dc++){
+    if(dr===0&&dc===0) continue;
+    const nr=r+dr,nc=c+dc;
+    if(nr>=0&&nr<SIZE&&nc>=0&&nc<SIZE) nb.push([nr,nc]);
+  }
+  return nb;
+}
+
+function seededRandSeq(seed, n){
+  const vals=[];
+  let s=seed;
+  for(let i=0;i<n;i++){
+    s=(s*1664525+1013904223)&0xffffffff;
+    vals.push((((s>>>0)/0xffffffff)*0.72+0.18));
+  }
+  return vals;
+}
+
+function pickNeighbour(r,c,rval){
+  const nb=getNeighbours(r,c);
+  return nb[Math.floor(rval*nb.length)%nb.length];
+}
+
+function buildSteps(startR,startC,seed){
+  const steps=[];
+  const Tschedule=[100,100,95,90,85,80,75,70,65,60,55,50,45,40,35,30,25,20,15,10,8,5];
+  const rVals=seededRandSeq(seed,40);
+  let rIdx=0;
+  let pos=[startR,startC];
+  let best=[startR,startC];
+  const trail=[[startR,startC]];
+
+  steps.push({
+    type:'start', cur:[...pos], cand:null, highlight:[], best:[...best], trail:[...trail.map(t=>[...t])],
+    T:Tschedule[0],
+    title:`Start — placed at (row ${pos[0]}, col ${pos[1]})`,
+    calcRows:[
+      ["Current position",`(row ${pos[0]}, col ${pos[1]})`,""],
+      ["L(current)",`${Lv(pos[0],pos[1])}`,"hl"],
+      ["Temperature T","100",""],
+      ["Best so far",`(${pos[0]},${pos[1]})  →  L = ${Lv(pos[0],pos[1])}`,""],
+    ],
+    pill:"info", pillText:"Initial placement",
+    note:`Dropped at row ${pos[0]}, col ${pos[1]} with value ${Lv(pos[0],pos[1])}. The global maximum on this grid is 80 at (row 3, col 3). Press Next to begin.`
+  });
+
+  const NUM_MOVES=15;
+  for(let m=0;m<NUM_MOVES;m++){
+    const tIdx=clamp(m,0,Tschedule.length-1);
+    const T=Tschedule[tIdx];
+    const nb=getNeighbours(pos[0],pos[1]);
+
+    steps.push({
+      type:'list', cur:[...pos], cand:null, highlight:nb, best:[...best], trail:[...trail.map(t=>[...t])],
+      T, title:`Move ${m+1} — neighbours of (row ${pos[0]}, col ${pos[1]})`,
+      calcRows:[
+        ["Current","(row "+pos[0]+", col "+pos[1]+")  →  L = "+Lv(pos[0],pos[1]),"hl"],
+        ["Valid neighbours",nb.length+" cells (circled on grid)",""],
+        ...nb.map(([r,c])=>[`  (row ${r}, col ${c})`,`L = ${Lv(r,c)}`,"amber"]),
+        ["SA picks…","one at random — not the best",""],
+      ],
+      pill:null,
+      note:`All ${nb.length} neighbours are circled on the grid. SA does not scan for the best — it picks one uniformly at random. The next step reveals which one.`
+    });
+
+    const rv1=rVals[rIdx%rVals.length]; rIdx++;
+    const [cr,cc]=pickNeighbour(pos[0],pos[1],rv1);
+    const cand=[cr,cc];
+    const dL=Lv(cr,cc)-Lv(pos[0],pos[1]);
+
+    steps.push({
+      type:'chosen', cur:[...pos], cand:[...cand], highlight:[], best:[...best], trail:[...trail.map(t=>[...t])],
+      T, title:`Move ${m+1} — candidate: (row ${cr}, col ${cc})`,
+      calcRows:[
+        ["Current","(row "+pos[0]+", col "+pos[1]+")",""],
+        ["L(current)",`${Lv(pos[0],pos[1])}`,""],
+        ["Candidate","(row "+cr+", col "+cc+")","hl"],
+        ["L(candidate)",`${Lv(cr,cc)}`,"hl"],
+        ["ΔL = L(cand) − L(cur)",`${Lv(cr,cc)} − ${Lv(pos[0],pos[1])} = ${dL>=0?"+":""}${dL}`,dL>=0?"good":"bad"],
+        ["Verdict",dL>=0?"better → always accept":"worse → apply Metropolis",dL>=0?"good":"bad"],
+      ],
+      pill:null,
+      note:`Arrow shows the proposed move. ΔL = ${dL>=0?"+":""}${dL} — ${dL>=0?"this is an improvement so we accept immediately, no calculation needed.":"this is worse so we compute an acceptance probability."}`
+    });
+
+    if(dL>=0){
+      const newBest=Lv(cr,cc)>Lv(best[0],best[1])?[...cand]:[...best];
+      trail.push([cr,cc]);
+      steps.push({
+        type:'accept_better', cur:[...cand], cand:null, highlight:[], best:newBest, trail:[...trail.map(t=>[...t])],
+        T, title:`Move ${m+1} — accepted (better)`,
+        calcRows:[
+          ["ΔL",`${dL>=0?"+":""}${dL}`,"good"],
+          ["Rule","ΔL ≥ 0  →  always accept",""],
+          ["No P needed","skip Metropolis",""],
+          ["Moved to","(row "+cr+", col "+cc+")  →  L = "+Lv(cr,cc),"hl good"],
+          Lv(cr,cc)>Lv(best[0],best[1])
+            ?["BEST updated","("+cr+","+cc+")  →  L = "+Lv(cr,cc),"good"]
+            :["BEST unchanged","("+best[0]+","+best[1]+")  →  L = "+Lv(best[0],best[1]),""],
+        ],
+        pill:"accept", pillText:"Accepted — better move",
+        note:`ΔL ≥ 0 so we move with no further checks. ${Lv(cr,cc)>Lv(best[0],best[1])?"BEST updated to this new high.":"BEST unchanged — we've seen better before."}`
+      });
+      best=newBest;
+      pos=[...cand];
+    } else {
+      const P=Math.exp(dL/T);
+      const rv2=rVals[rIdx%rVals.length]; rIdx++;
+      const r_val=parseFloat(rv2.toFixed(3));
+      const accepted=r_val<P;
+      if(accepted) trail.push([cr,cc]);
+      steps.push({
+        type:'metropolis', cur:accepted?[...cand]:[...pos], cand:accepted?null:[...cand], highlight:[], best:[...best], trail:[...trail.map(t=>[...t])],
+        T, title:`Move ${m+1} — Metropolis criterion`,
+        calcRows:[
+          ["ΔL",`${dL}`,"bad"],
+          ["Temperature T",`${T}`,""],
+          ["P = exp(ΔL / T)",`exp(${dL} / ${T})`,""],
+          ["",`= exp(${flt(dL/T)})`,""],
+          ["P ≈",`${flt(P)}`,"hl amber"],
+          ["Random r",`r = ${r_val}`,""],
+          ["r < P ?",`${r_val} < ${flt(P)}  →  ${accepted?"YES — accept":"NO — reject"}`,accepted?"good":"bad"],
+        ],
+        pill:accepted?"prob":"reject",
+        pillText:accepted?"Accepted probabilistically":"Rejected — stay in place",
+        note: accepted
+          ? `T=${T} gives P=${flt(P)}. r=${r_val} fell below P — we accept the worse move and explore. This is SA escaping a potential trap.`
+          : `P=${flt(P)} but r=${r_val} exceeded it — we stay at (${pos[0]},${pos[1]}). As T cools these rejections become more frequent.`
+      });
+      if(accepted) pos=[...cand];
+    }
+  }
+
+  steps.push({
+    type:'summary', cur:[...pos], cand:null, highlight:[], best:[...best], trail:[...trail.map(t=>[...t])],
+    T:Tschedule[clamp(NUM_MOVES,0,Tschedule.length-1)],
+    title:"Summary — end of run",
+    calcRows:[
+      ["Final position","(row "+pos[0]+", col "+pos[1]+")  →  L = "+Lv(pos[0],pos[1]),""],
+      ["Best seen","(row "+best[0]+", col "+best[1]+")  →  L = "+Lv(best[0],best[1]),"hl good"],
+      ["Global max","(row 3, col 3)  →  L = 80",""],
+      ["Result",Lv(best[0],best[1])===80?"Global max found!":"Partial — more iterations needed","hl"],
+    ],
+    pill:"info", pillText:"Run complete",
+    note:`SA returns BEST, not current position. The trail on the grid shows every accepted move. Click 'New start' to try a different starting position and seed.`
+  });
+
+  return steps;
+}
+
+let steps=[], cur=0;
+
+function rowHTML([label,value,cls]){
+  return `<div class="cr"><div class="cl">${label}</div><div class="cv2 ${cls}">${value}</div></div>`;
+}
+
+function drawArrow(ctx,x1,y1,x2,y2,col){
+  const dx=x2-x1,dy=y2-y1,len=Math.sqrt(dx*dx+dy*dy);
+  if(len<4) return;
+  const ux=dx/len,uy=dy/len,hl=10;
+  ctx.beginPath();
+  ctx.moveTo(x1,y1);
+  ctx.lineTo(x2-ux*4,y2-uy*4);
+  ctx.strokeStyle=col||'#BA7517';
+  ctx.lineWidth=2;
+  ctx.setLineDash([]);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x2,y2);
+  ctx.lineTo(x2-ux*hl-uy*6,y2-uy*hl+ux*6);
+  ctx.lineTo(x2-ux*hl+uy*6,y2-uy*hl-ux*6);
+  ctx.closePath();
+  ctx.fillStyle=col||'#BA7517';
+  ctx.fill();
+}
+
+function draw(){
+  const s=steps[cur];
+  const cv=document.getElementById('cv');
+  const ctx=cv.getContext('2d');
+  ctx.clearRect(0,0,320,320);
+  const dark=window.matchMedia('(prefers-color-scheme:dark)').matches;
+
+  for(let r=0;r<SIZE;r++) for(let c=0;c<SIZE;c++){
+    ctx.fillStyle=dark?'#1a1a18':'#ffffff';
+    ctx.fillRect(c*CW,r*CW,CW,CW);
+    ctx.strokeStyle=dark?'rgba(255,255,255,0.1)':'rgba(0,0,0,0.1)';
+    ctx.lineWidth=0.5;
+    ctx.strokeRect(c*CW,r*CW,CW,CW);
+    ctx.fillStyle=dark?'rgba(255,255,255,0.4)':'rgba(0,0,0,0.35)';
+    ctx.font=`12px sans-serif`;
+    ctx.textAlign='center';
+    ctx.textBaseline='middle';
+    ctx.fillText(GRID[r][c],c*CW+CW/2,r*CW+CW/2);
+  }
+
+  if(s.trail&&s.trail.length>1){
+    ctx.beginPath();
+    ctx.moveTo(cellCX(s.trail[0][1]),cellCY(s.trail[0][0]));
+    for(let i=1;i<s.trail.length;i++) ctx.lineTo(cellCX(s.trail[i][1]),cellCY(s.trail[i][0]));
+    ctx.strokeStyle='rgba(55,138,221,0.25)';
+    ctx.lineWidth=1.5;
+    ctx.setLineDash([3,3]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  for(const [hr,hc] of (s.highlight||[])){
+    ctx.beginPath();
+    ctx.arc(cellCX(hc),cellCY(hr),CW*0.36,0,Math.PI*2);
+    ctx.strokeStyle=dark?'#888780':'#5F5E5A';
+    ctx.lineWidth=1.5;
+    ctx.stroke();
+  }
+
+  const [br,bc]=s.best;
+  const curIsBest=s.cur[0]===br&&s.cur[1]===bc;
+  if(!curIsBest){
+    ctx.fillStyle='rgba(29,158,117,0.15)';
+    ctx.fillRect(bc*CW+1,br*CW+1,CW-2,CW-2);
+    ctx.strokeStyle='#1D9E75';
+    ctx.lineWidth=2;
+    ctx.strokeRect(bc*CW+1.25,br*CW+1.25,CW-2.5,CW-2.5);
+    ctx.fillStyle='#085041';
+    ctx.font=`500 13px sans-serif`;
+    ctx.textAlign='center';
+    ctx.textBaseline='middle';
+    ctx.fillText(GRID[br][bc],bc*CW+CW/2,br*CW+CW/2);
+  }
+
+  if(s.cand){
+    const [cr,cc]=s.cand;
+    drawArrow(ctx,cellCX(s.cur[1]),cellCY(s.cur[0]),cellCX(cc),cellCY(cr));
+    ctx.fillStyle='rgba(186,117,23,0.18)';
+    ctx.fillRect(cc*CW+1,cr*CW+1,CW-2,CW-2);
+    ctx.strokeStyle='#BA7517';
+    ctx.lineWidth=2.5;
+    ctx.strokeRect(cc*CW+1.25,cr*CW+1.25,CW-2.5,CW-2.5);
+    ctx.fillStyle='#633806';
+    ctx.font=`500 13px sans-serif`;
+    ctx.textAlign='center';
+    ctx.textBaseline='middle';
+    ctx.fillText(GRID[cr][cc],cc*CW+CW/2,cr*CW+CW/2);
+  }
+
+  const [pr,pc]=s.cur;
+  ctx.fillStyle='rgba(55,138,221,0.2)';
+  ctx.fillRect(pc*CW+1,pr*CW+1,CW-2,CW-2);
+  ctx.strokeStyle='#378ADD';
+  ctx.lineWidth=2.5;
+  ctx.strokeRect(pc*CW+1.25,pr*CW+1.25,CW-2.5,CW-2.5);
+  ctx.fillStyle='#0C447C';
+  ctx.font=`500 14px sans-serif`;
+  ctx.textAlign='center';
+  ctx.textBaseline='middle';
+  ctx.fillText(GRID[pr][pc],pc*CW+CW/2,pr*CW+CW/2);
+}
+
+function render(){
+  const s=steps[cur];
+  document.getElementById('sc').textContent=`Step ${cur+1} of ${steps.length}`;
+  document.getElementById('stitle').textContent=s.title;
+  document.getElementById('calc-box').innerHTML=s.calcRows.map(rowHTML).join('');
+  document.getElementById('kv-t').textContent=s.T;
+  document.getElementById('kv-cur').textContent=Lv(s.cur[0],s.cur[1]);
+  document.getElementById('kv-best').textContent=Lv(s.best[0],s.best[1]);
+  const tb=document.getElementById('tbar');
+  tb.style.width=s.T+'%';
+  tb.style.background=s.T>60?'#378ADD':s.T>25?'#BA7517':'#E24B4A';
+  const vp=document.getElementById('vpill');
+  vp.innerHTML=s.pill?`<div class="pill ${s.pill}">${s.pillText}</div>`:'';
+  document.getElementById('note').textContent=s.note;
+  document.getElementById('pb').disabled=cur===0;
+  document.getElementById('nb').disabled=cur===steps.length-1;
+  draw();
+}
+
+function go(d){cur=Math.max(0,Math.min(steps.length-1,cur+d));render();}
+function restart(){cur=0;steps=buildSteps(rnd(0,7),rnd(0,7),rnd(1,99999));render();}
+restart();
+</script>
+</body>
+</html>

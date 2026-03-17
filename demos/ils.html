@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Iterated Local Search Demo</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 15px; line-height: 1.7;
+  background: #12141c; color: #d4d0c8; padding: 20px; }
+
+canvas { display: block; width: 100%; border-radius: 6px; }
+
+.demo-stats { display: flex; justify-content: center; gap: 24px; font-size: 13px; margin: 10px 0 6px; }
+.demo-stat { text-align: center; }
+.demo-sv { font-size: 18px; font-weight: 600; color: #e0d8c8; }
+.demo-sl { font-size: 10px; color: #605850; text-transform: uppercase; letter-spacing: .06em; }
+
+.demo-ctrl { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin: 10px 0 4px; }
+.demo-ctrl button {
+  padding: 5px 16px; border-radius: 6px; font-size: 12px;
+  border: 1px solid #303040; background: transparent; color: #a0988a; cursor: pointer; }
+.demo-ctrl button:hover { background: #1c1f2b; color: #e0d8c8; }
+.demo-ctrl button.pri { background: #1e1c38; color: #9890d8; border-color: #534AB7; }
+.demo-ctrl button.pri:hover { background: #2a2850; }
+
+.demo-log { background: #0e1018; border: 1px solid #1e2028; border-radius: 6px;
+  padding: 8px 12px; font-size: 12px; color: #706858; min-height: 36px; margin: 8px 0; line-height: 1.6; }
+
+.demo-legend { display: flex; gap: 10px 18px; justify-content: center; flex-wrap: wrap;
+  font-size: 11px; color: #605850; margin: 6px 0; }
+.demo-legend .li { display: flex; align-items: center; gap: 4px; }
+.demo-legend .lb { width: 12px; height: 12px; border-radius: 3px; border: 1.5px solid transparent; }
+
+.phase-row { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin: 6px 0; }
+.phase-pill { padding: 3px 12px; border-radius: 20px; font-size: 11px; font-weight: 600;
+  border: 1px solid #252830; color: #504840; background: #161820; }
+.phase-pill.p-ls   { background: #1e1c38; color: #9890d8; border-color: #534AB7; }
+.phase-pill.p-pert { background: #281c08; color: #c89040; border-color: #a06010; }
+.phase-pill.p-acc  { background: #0c2820; color: #5DCAA5; border-color: #1D9E75; }
+
+.demo-sliders { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;
+  align-items: center; font-size: 12px; color: #605850; margin: 6px 0; }
+.demo-sliders label { display: flex; align-items: center; gap: 6px; }
+.demo-sliders input[type=range] { width: 80px; accent-color: #534AB7; }
+.demo-sliders select { font-size: 12px; padding: 2px 6px; border-radius: 5px;
+  border: 1px solid #303040; background: #12141c; color: #a0988a; }
+</style>
+</head>
+<body>
+
+<canvas id="ils-canvas" height="280"></canvas>
+<div class="demo-stats" style="margin-top:10px">
+  <div class="demo-stat"><div class="demo-sv" id="ils-steps">0</div><div class="demo-sl">total steps</div></div>
+  <div class="demo-stat"><div class="demo-sv" id="ils-run">0/5</div><div class="demo-sl">ILS run</div></div>
+  <div class="demo-stat"><div class="demo-sv" id="ils-cur">—</div><div class="demo-sl">current cost</div></div>
+  <div class="demo-stat"><div class="demo-sv" id="ils-best">—</div><div class="demo-sl">global best</div></div>
+</div>
+
+<div class="phase-row">
+  <span class="phase-pill" id="ils-ph-ls">1. local search</span>
+  <span class="phase-pill" id="ils-ph-p">2. perturb</span>
+  <span class="phase-pill" id="ils-ph-a">3. accept?</span>
+</div>
+
+<div class="demo-log" id="ils-log">Press Step or Auto-run. ILS = local search → perturb → local search → repeat.</div>
+
+<div class="demo-sliders">
+  <label>Perturbation strength:
+    <input type="range" min="1" max="5" value="2" step="1" id="ils-pert"
+      oninput="ILS_PERT=+this.value;document.getElementById('ils-pv').textContent=this.value">
+    <span id="ils-pv">2</span>
+  </label>
+  <label>Acceptance:
+    <select id="ils-acc">
+      <option value="better">better only</option>
+      <option value="always">always accept</option>
+    </select>
+  </label>
+</div>
+
+<div class="demo-legend">
+  <div class="li"><div class="lb" style="background:#534AB7;height:3px;width:16px;border-radius:2px;opacity:.7"></div>local search path</div>
+  <div class="li"><div class="lb" style="background:#a06010;height:2px;width:16px;border-radius:2px;border-top:1px dashed #a06010"></div>perturbation jump</div>
+  <div class="li"><svg width="12" height="12"><polygon points="6,1 11,11 1,11" fill="#1D9E75"/></svg>global best</div>
+  <div class="li"><svg width="12" height="12"><circle cx="6" cy="6" r="5" fill="#a06010"/></svg>current</div>
+</div>
+
+<div class="demo-ctrl">
+  <button onclick="ilsReset()">Reset</button>
+  <button class="pri" id="ils-btn" onclick="ilsStep()">Step →</button>
+  <button id="ils-auto" onclick="ilsAuto()">Auto-run</button>
+</div>
+
+<script>
+const ilsCV=document.getElementById('ils-canvas');
+const ilsCtx=ilsCV.getContext('2d');
+const IW=800,IH=280,IPAD=44;
+ilsCV.width=IW; ilsCV.height=IH;
+
+let ILS_PERT=2;
+const ILS_MAX_RUNS=5,ILS_LS_STEPS=12;
+
+function ilsF(x){
+  const t=(x-IPAD)/(IW-2*IPAD);
+  return 0.20*Math.sin(t*Math.PI*2.2+0.5)
+       + 0.18*Math.sin(t*Math.PI*4.1+1.2)
+       + 0.13*Math.sin(t*Math.PI*7.3+2.1)
+       + 0.07*Math.cos(t*Math.PI*12+0.3)
+       + 0.25*(t-0.45)*(t-0.45)
+       - 0.08*Math.sin(t*Math.PI*1.5);
+}
+function ilsSY(v){const mn=-0.42,mx=0.52;return IPAD+10+(v-mn)/(mx-mn)*(IH-IPAD*2-10);}
+
+let ilsState={},ilsTimer=null;
+
+function ilsLSStep(x){
+  const step=18;
+  const cands=[x-step,x+step,x-step*0.5,x+step*0.5];
+  let best=x,bestY=ilsF(x);
+  for(const cx of cands){if(cx<IPAD+2||cx>IW-IPAD-2)continue;if(ilsF(cx)<bestY){bestY=ilsF(cx);best=cx;}}
+  return best;
+}
+function ilsIsMin(x){return Math.abs(ilsLSStep(x)-x)<0.5;}
+function ilsPerturb(x){
+  const str=ILS_PERT,jMin=40*str,jMax=80*str;
+  const dist=jMin+Math.random()*(jMax-jMin),dir=Math.random()<0.5?1:-1;
+  return Math.max(IPAD+5,Math.min(IW-IPAD-5,x+dist*dir));
+}
+
+function ilsSetPhase(ph){
+  const ids=['ils-ph-ls','ils-ph-p','ils-ph-a'];
+  ids.forEach(id=>document.getElementById(id).className='phase-pill');
+  if(ph==='ls')document.getElementById('ils-ph-ls').classList.add('p-ls');
+  if(ph==='perturb')document.getElementById('ils-ph-p').classList.add('p-pert');
+  if(ph==='accept')document.getElementById('ils-ph-a').classList.add('p-acc');
+}
+
+function ilsReset(){
+  clearInterval(ilsTimer);ilsTimer=null;
+  document.getElementById('ils-auto').textContent='Auto-run';
+  document.getElementById('ils-btn').textContent='Step →';
+  const sx=IPAD+20;
+  ilsState={x:sx,bestX:sx,bestY:ilsF(sx),run:1,lsStep:0,phase:'ls',total:0,done:false,
+    lsPaths:[],curPath:[[sx,ilsF(sx)]],pertLine:null,optima:[]};
+  ilsSetPhase('ls');
+  document.getElementById('ils-log').textContent='Press Step or Auto-run. ILS = local search → perturb → local search → repeat.';
+  ilsDraw();
+}
+
+function ilsStep(){
+  if(ilsState.done)return;
+  const s=ilsState; s.total++;
+  if(s.phase==='ls'){
+    const nx=ilsLSStep(s.x);
+    s.curPath.push([nx,ilsF(nx)]);
+    s.x=nx; s.lsStep++;
+    if(ilsIsMin(s.x)||s.lsStep>=ILS_LS_STEPS){
+      s.optima.push([s.x,ilsF(s.x)]);
+      if(s.run>=ILS_MAX_RUNS){
+        s.done=true; s.lsPaths.push([...s.curPath]);
+        document.getElementById('ils-log').textContent=`Complete. Global best: ${s.bestY.toFixed(3)} at x=${Math.round(s.bestX-IPAD)}.`;
+        document.getElementById('ils-btn').textContent='Done'; ilsSetPhase('ls');
+      } else {
+        s.phase='perturb'; ilsSetPhase('perturb');
+        document.getElementById('ils-log').textContent=`Run ${s.run}: settled at x=${Math.round(s.x-IPAD)}, cost=${ilsF(s.x).toFixed(3)}. Now perturbing — jumping to a new basin.`;
+      }
+    } else {
+      ilsSetPhase('ls');
+      document.getElementById('ils-log').textContent=`Run ${s.run}, step ${s.lsStep}: at x=${Math.round(s.x-IPAD)}, cost=${ilsF(s.x).toFixed(3)} — descending.`;
+    }
+  } else if(s.phase==='perturb'){
+    const ox=s.x,nx=ilsPerturb(s.x);
+    s.pertLine={x1:ox,y1:ilsF(ox),x2:nx,y2:ilsF(nx)};
+    s.lsPaths.push([...s.curPath]); s.curPath=[[nx,ilsF(nx)]];
+    s.x=nx; s.lsStep=0; s.phase='accept'; ilsSetPhase('accept');
+    document.getElementById('ils-log').textContent=`Perturbed from x=${Math.round(ox-IPAD)} → x=${Math.round(nx-IPAD)}, cost=${ilsF(nx).toFixed(3)}. Now running local search from here.`;
+  } else {
+    s.run++; s.phase='ls'; ilsSetPhase('ls');
+    const acc=document.getElementById('ils-acc').value;
+    const accepted=acc==='always'||ilsF(s.x)<s.bestY+0.001;
+    if(ilsF(s.x)<s.bestY){s.bestY=ilsF(s.x);s.bestX=s.x;}
+    document.getElementById('ils-log').textContent=`Starting run ${s.run} from x=${Math.round(s.x-IPAD)}, cost=${ilsF(s.x).toFixed(3)}. ${accepted?'Accepted as new home base.':'Searching but may revert if worse.'}`;
+  }
+  if(ilsF(s.x)<s.bestY){s.bestY=ilsF(s.x);s.bestX=s.x;}
+  document.getElementById('ils-steps').textContent=s.total;
+  document.getElementById('ils-run').textContent=s.run+'/'+ILS_MAX_RUNS;
+  document.getElementById('ils-cur').textContent=ilsF(s.x).toFixed(2);
+  document.getElementById('ils-best').textContent=s.bestY.toFixed(2);
+  ilsDraw();
+}
+
+function ilsAuto(){
+  if(ilsTimer){clearInterval(ilsTimer);ilsTimer=null;document.getElementById('ils-auto').textContent='Auto-run';}
+  else{
+    document.getElementById('ils-auto').textContent='Pause';
+    ilsTimer=setInterval(()=>{if(ilsState.done){clearInterval(ilsTimer);ilsTimer=null;document.getElementById('ils-auto').textContent='Auto-run';}else ilsStep();},380);
+  }
+}
+
+const RUN_COLS=['#534AB7','#1D9E75','#BA7517','#D4537E','#378ADD'];
+
+function ilsDraw(){
+  const s=ilsState;
+  ilsCtx.fillStyle='#0e1018';ilsCtx.beginPath();ilsCtx.roundRect(0,0,IW,IH,8);ilsCtx.fill();
+  ilsCtx.strokeStyle='#1a1c24';ilsCtx.lineWidth=0.5;
+  for(let gx=IPAD;gx<=IW-IPAD;gx+=70){ilsCtx.beginPath();ilsCtx.moveTo(gx,IPAD);ilsCtx.lineTo(gx,IH-IPAD+8);ilsCtx.stroke();}
+  ilsCtx.strokeStyle='rgba(255,255,255,0.1)';ilsCtx.lineWidth=1;
+  ilsCtx.beginPath();ilsCtx.moveTo(IPAD,IH-IPAD+8);ilsCtx.lineTo(IW-IPAD,IH-IPAD+8);ilsCtx.stroke();
+  ilsCtx.fillStyle='rgba(255,255,255,0.25)';ilsCtx.font='11px sans-serif';ilsCtx.textAlign='center';
+  ilsCtx.fillText('x (search space)',IW/2,IH-6);
+  ilsCtx.strokeStyle='#504848';ilsCtx.lineWidth=2;ilsCtx.beginPath();
+  for(let x=IPAD;x<=IW-IPAD;x++){const y=ilsSY(ilsF(x));x===IPAD?ilsCtx.moveTo(x,y):ilsCtx.lineTo(x,y);}
+  ilsCtx.stroke();
+  s.lsPaths.forEach((path,i)=>{
+    const col=RUN_COLS[i%RUN_COLS.length];
+    ilsCtx.strokeStyle=col;ilsCtx.lineWidth=2;ilsCtx.globalAlpha=0.5;ilsCtx.setLineDash([]);
+    ilsCtx.beginPath();path.forEach(([px,py],j)=>{j===0?ilsCtx.moveTo(px,ilsSY(py)):ilsCtx.lineTo(px,ilsSY(py));});ilsCtx.stroke();
+    ilsCtx.globalAlpha=1;
+    if(path.length>0){const[lx,ly]=path[path.length-1];ilsCtx.fillStyle=col;ilsCtx.beginPath();ilsCtx.arc(lx,ilsSY(ly),5,0,Math.PI*2);ilsCtx.fill();}
+  });
+  if(s.curPath.length>1){
+    const col=RUN_COLS[(s.run-1)%RUN_COLS.length];
+    ilsCtx.strokeStyle=col;ilsCtx.lineWidth=2.5;ilsCtx.globalAlpha=1;ilsCtx.setLineDash([]);
+    ilsCtx.beginPath();s.curPath.forEach(([px,py],j)=>{j===0?ilsCtx.moveTo(px,ilsSY(py)):ilsCtx.lineTo(px,ilsSY(py));});ilsCtx.stroke();
+  }
+  if(s.pertLine){
+    const pl=s.pertLine;
+    ilsCtx.strokeStyle='#a06010';ilsCtx.lineWidth=1.5;ilsCtx.setLineDash([6,4]);ilsCtx.globalAlpha=0.9;
+    ilsCtx.beginPath();ilsCtx.moveTo(pl.x1,ilsSY(pl.y1));ilsCtx.lineTo(pl.x2,ilsSY(pl.y2));ilsCtx.stroke();
+    ilsCtx.setLineDash([]);ilsCtx.globalAlpha=1;
+    const mx=(pl.x1+pl.x2)/2,my=(ilsSY(pl.y1)+ilsSY(pl.y2))/2-10;
+    ilsCtx.fillStyle='#a06010';ilsCtx.font='500 11px sans-serif';ilsCtx.textAlign='center';ilsCtx.fillText('perturb',mx,my);
+  }
+  s.optima.forEach(([ox,oy],i)=>{
+    const col=RUN_COLS[i%RUN_COLS.length];
+    ilsCtx.strokeStyle=col;ilsCtx.lineWidth=1.5;ilsCtx.fillStyle='#0e1018';
+    ilsCtx.beginPath();ilsCtx.arc(ox,ilsSY(oy),6,0,Math.PI*2);ilsCtx.fill();ilsCtx.stroke();
+  });
+  const bsy=ilsSY(s.bestY);
+  ilsCtx.fillStyle='#1D9E75';ilsCtx.beginPath();ilsCtx.moveTo(s.bestX,bsy-14);ilsCtx.lineTo(s.bestX-7,bsy-2);ilsCtx.lineTo(s.bestX+7,bsy-2);ilsCtx.closePath();ilsCtx.fill();
+  const csy=ilsSY(ilsF(s.x));
+  ilsCtx.fillStyle='#a06010';ilsCtx.strokeStyle='#604008';ilsCtx.lineWidth=2;ilsCtx.setLineDash([]);
+  ilsCtx.beginPath();ilsCtx.arc(s.x,csy,7,0,Math.PI*2);ilsCtx.fill();ilsCtx.stroke();
+}
+
+ilsReset();
+</script>
+</body>
+</html>
