@@ -14,12 +14,29 @@ styles.css              ← shared base styles
 05_minimax_alphabeta.html
 06_sa_tabu_ils.html
 07_genetic_algorithms.html
-demos/                  ← standalone interactive visualisations (embedded via <iframe>)
-  sa_8x8.html           ← SA Metropolis step-through on an 8×8 grid
-  tabu_grid.html        ← Tabu Search on a 7×5 cost grid
-  tabu_continuous.html  ← Tabu Search on a continuous landscape
-  ils.html              ← Iterated Local Search on a continuous landscape
+demos/                        ← standalone interactive visualisations (embedded via <iframe>)
+  sa_8x8.html               ← SA Metropolis step-through on an 8×8 grid
+  tabu_grid.html            ← Tabu Search on a 7×5 cost grid
+  tabu_continuous.html      ← Tabu Search on a continuous landscape
+  ils.html                  ← Iterated Local Search on a continuous landscape
+  best_first_search_tree.html ← Best First Search tree step-through with OPEN list table
+  astar_tree_with_table.html  ← A* tree step-through with g/h/f table
+  four_level_min_root_with_prune.html ← Alpha-Beta Pruning 15-step walkthrough
+ST1_Summary.html            ← full summary of all theory and algorithms
 ```
+
+## Coming Soon
+
+The following algorithms currently have no interactive demo and are planned:
+
+| Algorithm | Topic file |
+|---|---|
+| DFS | `03_dfs_dfid_bfs.html` |
+| BFS | `03_dfs_dfid_bfs.html` |
+| DFID | `03_dfs_dfid_bfs.html` |
+| Hill Climbing | `04_hill_climbing_astar.html` |
+| Minimax | `05_minimax_alphabeta.html` |
+| Genetic Algorithm | `07_genetic_algorithms.html` |
 
 ## Adding a new interactive demo
 
