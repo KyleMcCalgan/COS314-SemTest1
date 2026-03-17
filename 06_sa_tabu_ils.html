@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>COS314 | SA, Tabu & ILS</title>
+<style>
+/* ── Base ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 15px; line-height: 1.7;
+  background: #0f1117; color: #d4d0c8; }
+
+/* ── Hero ── */
+.hero { position: relative; padding: 64px 40px 48px; background: #161820;
+  border-bottom: 1px solid #2a2d3a; overflow: hidden; }
+.hero::before { position: absolute; top: -10px; right: 40px; font-size: 120px;
+  font-weight: 900; color: rgba(176,128,48,0.07); line-height: 1; content: '09'; }
+.tag { font-size: 12px; letter-spacing: .12em; text-transform: uppercase;
+  color: #b08030; margin-bottom: 12px; }
+.hero h1 { font-size: 36px; font-weight: 700; color: #f0ead8; line-height: 1.2; margin-bottom: 10px; }
+.hero .subtitle { color: #7a7870; font-size: 16px; }
+
+/* ── Content ── */
+.content { max-width: 860px; margin: 0 auto; padding: 40px 24px 80px; }
+.section { margin-bottom: 0; }
+hr.sep { border: none; border-top: 1px solid #2a2d3a; margin: 48px 0; }
+
+/* ── Typography ── */
+h2 { font-size: 24px; font-weight: 700; color: #f0ead8; margin: 0 0 16px;
+  padding-bottom: 8px; border-bottom: 2px solid #b08030; display: inline-block; }
+h2.blue  { border-color: #3090a8; }
+h2.purple{ border-color: #6830a8; }
+h3 { font-size: 16px; font-weight: 600; color: #c8c0b0; margin: 24px 0 10px; }
+p  { margin-bottom: 14px; color: #b8b0a0; }
+ul { padding-left: 20px; margin-bottom: 14px; }
+li { margin-bottom: 6px; color: #b8b0a0; }
+strong { color: #e0d8c8; }
+a  { color: #3090a8; }
+
+/* ── Cards ── */
+.card { background: #1c1f2b; border: 1px solid #2e3040; border-left: 3px solid #b08030;
+  border-radius: 6px; padding: 14px 18px; margin: 16px 0; color: #b8b0a0; }
+.card.blue   { border-left-color: #3090a8; }
+.card.purple { border-left-color: #6830a8; }
+.card.red    { border-left-color: #a83030; }
+.card strong { display: block; margin-bottom: 8px; color: #e0d8c8; }
+.card ul { margin: 6px 0 0; }
+
+/* ── Callout ── */
+.callout { background: #1a1d28; border: 1px solid #3a3320; border-radius: 6px;
+  padding: 12px 16px; margin: 16px 0; font-size: 13px; color: #908878; font-style: italic; }
+.callout.blue   { border-color: #203040; }
+.callout.purple { border-color: #2a1a3a; }
+
+/* ── Code ── */
+.code { background: #12141c; border: 1px solid #252830; border-radius: 6px;
+  padding: 16px 18px; margin: 16px 0; font-family: 'Cascadia Code','Fira Mono','Consolas',monospace;
+  font-size: 12.5px; line-height: 1.65; color: #8cc870; white-space: pre; overflow-x: auto; }
+
+/* ── Table ── */
+table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; }
+th { background: #1c1f2b; color: #c8c0b0; padding: 10px 12px; border: 1px solid #2e3040; text-align: left; }
+td { padding: 9px 12px; border: 1px solid #252830; color: #a8a098; }
+tr:nth-child(even) td { background: #161820; }
+
+/* ── Grid ── */
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+@media(max-width:600px){ .grid2 { grid-template-columns: 1fr; } }
+
+/* ── Temp bar ── */
+.temp-bar { display: flex; align-items: center; gap: 12px; margin: 14px 0; }
+.temp-fill { height: 10px; background: linear-gradient(to right, #c84030, #3060c8); border-radius: 5px; flex: 1; }
+.temp-label { font-size: 12px; color: #706860; white-space: nowrap; }
+
+/* ── Nav hint ── */
+.nav-hint { margin-top: 56px; text-align: center; font-size: 12px; color: #404040;
+  letter-spacing: .06em; }
+
+/* ══════════════════════════════════════════
+   INTERACTIVE DEMO SHARED STYLES
+══════════════════════════════════════════ */
+.demo-wrap { background: #12141c; border: 1px solid #252830; border-radius: 10px;
+  padding: 20px; margin: 24px 0; }
+.demo-wrap canvas { display: block; width: 100%; border-radius: 6px; }
+
+.demo-stats { display: flex; justify-content: center; gap: 24px; font-size: 13px; margin: 10px 0 6px; }
+.demo-stat { text-align: center; }
+.demo-sv { font-size: 18px; font-weight: 600; color: #e0d8c8; }
+.demo-sl { font-size: 10px; color: #605850; text-transform: uppercase; letter-spacing: .06em; }
+
+.demo-ctrl { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin: 10px 0 4px; }
+.demo-ctrl button, .demo-strat button {
+  padding: 5px 16px; border-radius: 6px; font-size: 12px;
+  border: 1px solid #303040; background: transparent; color: #a0988a; cursor: pointer; }
+.demo-ctrl button:hover, .demo-strat button:hover { background: #1c1f2b; color: #e0d8c8; }
+.demo-ctrl button.pri { background: #1e1c38; color: #9890d8; border-color: #534AB7; }
+.demo-ctrl button.pri:hover { background: #2a2850; }
+
+.demo-log { background: #0e1018; border: 1px solid #1e2028; border-radius: 6px;
+  padding: 8px 12px; font-size: 12px; color: #706858; min-height: 36px; margin: 8px 0;
+  line-height: 1.6; }
+.demo-log b { color: #a09080; }
+.demo-legend { display: flex; gap: 10px 18px; justify-content: center; flex-wrap: wrap;
+  font-size: 11px; color: #605850; margin: 6px 0; }
+.demo-legend .li { display: flex; align-items: center; gap: 4px; }
+.demo-legend .lb { width: 12px; height: 12px; border-radius: 3px; border: 1.5px solid transparent; }
+
+/* tabu grid */
+.t-grid { display: grid; grid-template-columns: repeat(7, 52px); gap: 3px;
+  justify-content: center; margin: 10px 0; }
+.t-cell { width: 52px; height: 52px; border-radius: 7px; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; border: 1.5px solid transparent;
+  transition: transform .15s; }
+.t-cell .cv { font-size: 15px; font-weight: 600; }
+.t-cell .cc { font-size: 9px; opacity: .5; margin-top: 1px; }
+.t-cell.curr    { background: #1e1c38; border-color: #534AB7; color: #9890d8; transform: scale(1.08); }
+.t-cell.best    { background: #0c2820; border-color: #1D9E75; color: #5DCAA5; }
+.t-cell.tabu    { background: #280c0c; border-color: #a83030; color: #c86060; opacity: .75; }
+.t-cell.neigh   { background: #281c08; border-color: #a06010; color: #c89040; }
+.t-cell.visited { background: #16181e; opacity: .55; color: #504840; }
+.t-cell.optimum { background: #0a3020; border-color: #1D9E75; color: #5DCAA5;
+  box-shadow: 0 0 0 2px #1D9E7540; }
+.t-cell.optimum .cv { color: #9FE1CB; font-size: 17px; }
+
+.tabu-tags { display: flex; gap: 5px; flex-wrap: wrap; min-height: 26px; align-items: center; }
+.tabu-tag { padding: 2px 8px; border-radius: 5px; background: #280c0c; color: #c86060;
+  border: 1px solid #5a2020; font-size: 11px; }
+
+.strat-label { font-size: 10px; font-weight: 600; color: #504840; text-transform: uppercase;
+  letter-spacing: .06em; margin: 10px 0 4px; text-align: center; }
+.demo-strat { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; margin: 4px 0 10px; }
+.demo-strat button.active { background: #1e1c38; color: #9890d8; border-color: #534AB7; }
+
+.phase-row { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin: 6px 0; }
+.phase-pill { padding: 3px 12px; border-radius: 20px; font-size: 11px; font-weight: 600;
+  border: 1px solid #252830; color: #504840; background: #161820; }
+.phase-pill.p-ls   { background: #1e1c38; color: #9890d8; border-color: #534AB7; }
+.phase-pill.p-pert { background: #281c08; color: #c89040; border-color: #a06010; }
+.phase-pill.p-acc  { background: #0c2820; color: #5DCAA5; border-color: #1D9E75; }
+
+.demo-sliders { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;
+  align-items: center; font-size: 12px; color: #605850; margin: 6px 0; }
+.demo-sliders label { display: flex; align-items: center; gap: 6px; }
+.demo-sliders input[type=range] { width: 80px; accent-color: #534AB7; }
+.demo-sliders select { font-size: 12px; padding: 2px 6px; border-radius: 5px;
+  border: 1px solid #303040; background: #12141c; color: #a0988a; }
+</style>
+</head>
+<body>
+<div class="hero">
+  <div class="tag">COS314 · Topic 09</div>
+  <h1>Simulated Annealing<br>Tabu Search &amp; ILS</h1>
+  <p class="subtitle">Metaheuristics that escape local optima</p>
+</div>
+
+<div class="content">
+
+<!-- ======================== SIMULATED ANNEALING ======================== -->
+<div class="section">
+  <h2>Simulated Annealing (SA)</h2>
+  <p>Simulated annealing is like hill climbing that <strong>sometimes accepts worse solutions</strong>. This counterintuitive approach lets it escape local optima. Named after metal annealing: heat metal high, cool slowly → stable low-energy crystal structure.</p>
+  <div class="card">
+    <strong>The Core Insight</strong>
+    Hill climbing only moves "uphill" (better solutions). This gets stuck at local optima. SA occasionally moves "downhill" (worse solutions), allowing it to escape and find the global optimum.
+  </div>
+  <h3>Temperature and Probability</h3>
+  <p>The key parameter is <strong>temperature T</strong>. It controls how likely SA is to accept a worse solution:</p>
+  <ul>
+    <li><strong>High T (hot)</strong>: More likely to accept worse solutions — explore widely</li>
+    <li><strong>Low T (cold)</strong>: Rarely accept worse solutions — exploit what's been found</li>
+    <li>Acceptance probability for worse solution: <strong>P = min(1, exp(−ΔL/T))</strong></li>
+  </ul>
+  <div class="temp-bar">
+    <div class="temp-label">Hot (explore)</div>
+    <div class="temp-fill"></div>
+    <div class="temp-label">Cold (exploit)</div>
+  </div>
+  <div class="code">SIMULATED ANNEALING:
+Input: Initial state s, loss function L(·)
+
+CURRENT ← s
+BEST    ← s
+T       ← T₀  (initial temperature — similar to average loss difference)
+t       ← 1
+
+repeat:
+  NEXT ← randomly chosen adjacent state to CURRENT
+  ΔL   ← L(NEXT) − L(CURRENT)   // negative = NEXT is better
+
+  if ΔL &lt; 0:                     // NEXT is better → always accept
+    CURRENT ← NEXT
+  else:                           // NEXT is worse → accept with probability
+    CURRENT ← NEXT  with probability min(1, exp(−ΔL/T))
+
+  if L(CURRENT) &lt; L(BEST):
+    BEST ← CURRENT
+
+  t ← t + 1
+  T ← T₀ / log(t + 1)           // cooling schedule
+
+until no improvement in BEST for N iterations
+return BEST</div>
+  <div class="callout">
+    ΔL = L(next) − L(current). If ΔL &lt; 0, next is BETTER (lower loss) → always accept. If ΔL &gt; 0, next is WORSE → accept with probability exp(−ΔL/T). As T decreases, this probability shrinks.
+  </div>
+  <h3>Cooling Schedule</h3>
+  <p>The cooling schedule determines how temperature decreases. Common example: T = T₀ / log(t+1). The exact schedule is a key parameter — too fast = local optima, too slow = computationally expensive.</p>
+  <h3>Disadvantages of SA</h3>
+  <div class="card red">
+    <strong>Limitations</strong>
+    <ul>
+      <li>No guarantee of finding global optimum — heuristic</li>
+      <li>Heavy parameter tuning needed (T₀, cooling schedule, neighbourhood)</li>
+      <li>Can be slow to converge</li>
+      <li>Computationally expensive for complex problems</li>
+    </ul>
+  </div>
+</div>
+
+<hr class="sep">
+
+<!-- ======================== TABU SEARCH ======================== -->
+<div class="section">
+  <h2 class="blue">Tabu Search</h2>
+  <p>Tabu search is like hill climbing that keeps a <strong>"tabu list" of recently visited states</strong> — a short-term memory that prevents revisiting recent solutions, forcing exploration of new areas.</p>
+  <div class="card blue">
+    <strong>The Core Idea</strong>
+    Unlike SA (probabilistic), Tabu Search is deterministic. It remembers where it's been (tabu list) and forbids going back there for a while. This creates a structured way to escape local optima.
+  </div>
+  <div class="code">TABU SEARCH:
+s   ← s₀              // initial candidate solution
+L   ← {}              // tabu list (empty)
+z   ← max tabu length // FIFO queue bound
+
+repeat:
+  s' ← randomly generate a neighbour of s
+
+  if s' ∉ L:          // not forbidden
+    if length(L) > z:
+      remove OLDEST solution from L   // FIFO — evict old entries
+    add s' to L
+
+  if s' is better than s:
+    s ← s'
+
+until stopping criterion is met
+return s</div>
+
+  <h3>How the Tabu List Works</h3>
+  <ul>
+    <li>The tabu list stores recently visited solutions (or moves)</li>
+    <li>Has a fixed maximum size z (FIFO — oldest entry removed first)</li>
+    <li>Solutions on the tabu list cannot be revisited (they are "taboo")</li>
+    <li>Forces the algorithm to explore new regions of the search space</li>
+    <li>Comparable to the CLOSED list in standard search algorithms</li>
+  </ul>
+  <div class="callout blue">
+    The tabu list uses FIFO (First-In First-Out). When it's full, the OLDEST entry is removed. This gives the algorithm "short-term memory" — recently visited states are forbidden, but old ones eventually become available again.
+  </div>
+
+  <!-- ── TABU INTERACTIVE DEMO ── -->
+  <h3>Interactive Demo: Tabu Search on a Grid</h3>
+  <p>A 7×5 grid where each cell has a cost value. The search minimises cost, using the tabu list to avoid cycling. Watch how forbidden zones force the agent into new territory.</p>
+
+  <div class="demo-wrap">
+    <div class="demo-stats">
+      <div class="demo-stat"><div class="demo-sv" id="ts-iter">0</div><div class="demo-sl">iteration</div></div>
+      <div class="demo-stat"><div class="demo-sv" id="ts-curr">—</div><div class="demo-sl">current cost</div></div>
+      <div class="demo-stat"><div class="demo-sv" id="ts-best">—</div><div class="demo-sl">best cost</div></div>
+      <div class="demo-stat"><div class="demo-sv" id="ts-tabu">0</div><div class="demo-sl">tabu size</div></div>
+    </div>
+
+    <div class="demo-legend">
+      <div class="li"><div class="lb" style="background:#1e1c38;border-color:#534AB7"></div>current</div>
+      <div class="li"><div class="lb" style="background:#281c08;border-color:#a06010"></div>neighbors</div>
+      <div class="li"><div class="lb" style="background:#0c2820;border-color:#1D9E75"></div>best found</div>
+      <div class="li"><div class="lb" style="background:#280c0c;border-color:#a83030"></div>tabu</div>
+      <div class="li"><div class="lb" style="background:#16181e"></div>visited</div>
+    </div>
+
+    <div class="t-grid" id="ts-grid"></div>
+
+    <div style="max-width:420px;margin:8px auto 0">
+      <div class="strat-label">tabu list (tenure = 3)</div>
+      <div class="tabu-tags" id="ts-tags"><span style="font-size:11px;color:#403830">empty</span></div>
+      <div class="strat-label">log</div>
+      <div class="demo-log" id="ts-log">Press <b>Step</b> to begin. Best-neighbour selection picks the lowest-cost non-tabu adjacent cell each iteration.</div>
+    </div>
+
+    <div class="demo-ctrl" style="margin-top:12px">
+      <button onclick="tsReset()">Reset</button>
+      <button class="pri" id="ts-btn-step" onclick="tsStep()">Step →</button>
+      <button id="ts-btn-auto" onclick="tsAuto()">Auto-run</button>
+      <span style="font-size:11px;color:#504840;align-self:center">Tenure:
+        <input type="range" min="2" max="8" value="3" step="1" id="ts-tenure"
+          style="width:60px;accent-color:#534AB7;vertical-align:middle"
+          oninput="TS_TENURE=+this.value;document.getElementById('ts-tv').textContent=this.value">
+        <span id="ts-tv" style="color:#a0988a">3</span>
+      </span>
+    </div>
+  </div>
+
+  <!-- ── TABU CONTINUOUS DEMO ── -->
+  <h3>Tabu Search on a Continuous Landscape</h3>
+  <p>The same algorithm operating on a continuous cost function. Tabu zones (red shading) fade as their tenure expires, freeing up previously forbidden regions.</p>
+
+  <div class="demo-wrap">
+    <canvas id="tc-canvas" height="260"></canvas>
+    <div class="demo-stats" style="margin-top:10px">
+      <div class="demo-stat"><div class="demo-sv" id="tc-iter">0</div><div class="demo-sl">iteration</div></div>
+      <div class="demo-stat"><div class="demo-sv" id="tc-cur">—</div><div class="demo-sl">current</div></div>
+      <div class="demo-stat"><div class="demo-sv" id="tc-best">—</div><div class="demo-sl">best</div></div>
+    </div>
+    <div class="demo-legend">
+      <div class="li"><div class="lb" style="background:#534AB7;height:3px;width:16px;border-radius:2px"></div>path</div>
+      <div class="li"><div class="lb" style="background:#a83030;opacity:.4"></div>tabu zone</div>
+      <div class="li"><svg width="12" height="12"><polygon points="6,1 11,11 1,11" fill="#1D9E75"/></svg>global best</div>
+      <div class="li"><svg width="12" height="12"><circle cx="6" cy="6" r="5" fill="#a06010"/></svg>current</div>
+    </div>
+    <div class="demo-log" id="tc-log">Press Step to watch tabu search navigate the continuous landscape.</div>
+    <div class="demo-ctrl">
+      <button onclick="tcReset()">Reset</button>
+      <button class="pri" id="tc-btn" onclick="tcStep()">Step →</button>
+      <button id="tc-auto" onclick="tcAuto()">Auto-run</button>
+    </div>
+  </div>
+
+  <h3>Tabu vs Hill Climbing</h3>
+  <div class="grid2">
+    <div class="card">
+      <strong>Hill Climbing</strong>
+      <ul>
+        <li>Always accepts better moves</li>
+        <li>No memory</li>
+        <li>Gets stuck at local optima permanently</li>
+        <li>Simple</li>
+      </ul>
+    </div>
+    <div class="card blue">
+      <strong>Tabu Search</strong>
+      <ul>
+        <li>Can accept worse moves (to escape)</li>
+        <li>Short-term memory (tabu list)</li>
+        <li>Escapes local optima via forbidden zones</li>
+        <li>Usually outperforms hill climbing</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Two Practical Enhancements</h3>
+  <div class="card blue">
+    <strong>Enhancement 1: Best-neighbour selection</strong>
+    Instead of any random unvisited neighbour, pick the BEST unvisited neighbour according to the cost function. Slower per step, but faster improvement.
+  </div>
+  <div class="card blue">
+    <strong>Enhancement 2: Bounded tabu list</strong>
+    Keep the list at a fixed max size. When full, remove the earliest entry. This is important for computational and memory efficiency.
+  </div>
+
+  <h3>Disadvantages of Tabu Search</h3>
+  <div class="card red">
+    <strong>Limitations</strong>
+    <ul>
+      <li>No guarantee of finding global optimum</li>
+      <li>Performance depends heavily on tabu list size and parameters</li>
+      <li>Stopping criteria are tricky — relies on randomness so may run indefinitely</li>
+      <li>Memory-constrained environments limit tabu list size</li>
+      <li>Initial solution affects where the search begins</li>
+    </ul>
+  </div>
+</div>
+
+<hr class="sep">
+
+<!-- ======================== ILS ======================== -->
+<div class="section">
+  <h2 class="purple">Iterated Local Search (ILS)</h2>
+  <p>ILS improves upon basic local search by <strong>repeatedly perturbing locally optimal solutions</strong> and applying local search again. It escapes local optima by making a big jump to a new area, then fine-tuning from there.</p>
+  <div class="card purple">
+    <strong>The Core Idea</strong>
+    Local search finds a local optimum. Then PERTURB it (big random jump). Apply local search again from there. Accept the new result if it's better. Repeat. This explores multiple regions.
+  </div>
+  <div class="code">ITERATED LOCAL SEARCH (ILS):
+s₁ ← GenerateInitialSolution()
+s* ← LocalSearch(s₁)          // find first local optimum
+
+repeat:
+  s'  ← Perturbation(s*, history)    // jump to new area
+  s*' ← LocalSearch(s')              // find local optimum from there
+  s*  ← AcceptanceCriterion(s*, s*', history)  // keep better one
+
+until termination condition met
+return s*</div>
+
+  <h3>Step-by-Step Breakdown</h3>
+  <ul>
+    <li><strong>1. Generate Initial Solution</strong>: Random or heuristic-guided starting point</li>
+    <li><strong>2. Local Search</strong>: Find a local optimum from the starting point</li>
+    <li><strong>3. Perturbation</strong>: Make a BIG change (bigger than local search moves) to escape the local optimum basin. Strength is a key parameter.</li>
+    <li><strong>4. Local Search again</strong>: Fine-tune the perturbed solution to a new local optimum</li>
+    <li><strong>5. Acceptance Criterion</strong>: Decide whether the new local optimum is better. May accept worse solutions occasionally (like SA).</li>
+    <li><strong>6. Repeat</strong> until stopping condition (iterations/time/target quality)</li>
+  </ul>
+  <div class="callout purple">
+    KEY DIFFERENCE from SA/Tabu: ILS makes LARGE perturbations to jump across basins of attraction, then uses a LOCAL search to find the best solution in that new region. It's a macro-level diversification strategy.
+  </div>
+
+  <!-- ── ILS INTERACTIVE DEMO ── -->
+  <h3>Interactive Demo: ILS on a Continuous Landscape</h3>
+  <p>Each run is a different colour. Watch the agent descend to a local minimum, then make a large perturbation jump (dashed line) to a new basin, and repeat. The green triangle marks the global best found across all runs.</p>
+
+  <div class="demo-wrap">
+    <canvas id="ils-canvas" height="280"></canvas>
+    <div class="demo-stats" style="margin-top:10px">
+      <div class="demo-stat"><div class="demo-sv" id="ils-steps">0</div><div class="demo-sl">total steps</div></div>
+      <div class="demo-stat"><div class="demo-sv" id="ils-run">0/5</div><div class="demo-sl">ILS run</div></div>
+      <div class="demo-stat"><div class="demo-sv" id="ils-cur">—</div><div class="demo-sl">current cost</div></div>
+      <div class="demo-stat"><div class="demo-sv" id="ils-best">—</div><div class="demo-sl">global best</div></div>
+    </div>
+
+    <div class="phase-row">
+      <span class="phase-pill" id="ils-ph-ls">1. local search</span>
+      <span class="phase-pill" id="ils-ph-p">2. perturb</span>
+      <span class="phase-pill" id="ils-ph-a">3. accept?</span>
+    </div>
+
+    <div class="demo-log" id="ils-log">Press Step or Auto-run. ILS = local search → perturb → local search → repeat.</div>
+
+    <div class="demo-sliders">
+      <label>Perturbation strength:
+        <input type="range" min="1" max="5" value="2" step="1" id="ils-pert"
+          oninput="ILS_PERT=+this.value;document.getElementById('ils-pv').textContent=this.value">
+        <span id="ils-pv">2</span>
+      </label>
+      <label>Acceptance:
+        <select id="ils-acc">
+          <option value="better">better only</option>
+          <option value="always">always accept</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="demo-legend">
+      <div class="li"><div class="lb" style="background:#534AB7;height:3px;width:16px;border-radius:2px;opacity:.7"></div>local search path</div>
+      <div class="li"><div class="lb" style="background:#a06010;height:2px;width:16px;border-radius:2px;border-top:1px dashed #a06010"></div>perturbation jump</div>
+      <div class="li"><svg width="12" height="12"><polygon points="6,1 11,11 1,11" fill="#1D9E75"/></svg>global best</div>
+      <div class="li"><svg width="12" height="12"><circle cx="6" cy="6" r="5" fill="#a06010"/></svg>current</div>
+    </div>
+
+    <div class="demo-ctrl">
+      <button onclick="ilsReset()">Reset</button>
+      <button class="pri" id="ils-btn" onclick="ilsStep()">Step →</button>
+      <button id="ils-auto" onclick="ilsAuto()">Auto-run</button>
+    </div>
+  </div>
+</div>
+
+<hr class="sep">
+
+<!-- ======================== COMPARISON ======================== -->
+<div class="section">
+  <h2>Comparison: SA vs Tabu vs ILS</h2>
+  <table>
+    <tr><th>Property</th><th>Simulated Annealing</th><th>Tabu Search</th><th>ILS</th></tr>
+    <tr><td>Memory</td><td>None (memoryless)</td><td>Short-term (tabu list)</td><td>History of perturbations</td></tr>
+    <tr><td>Escape mechanism</td><td>Probabilistic worse acceptance</td><td>Forbidden zones (tabu)</td><td>Large perturbations</td></tr>
+    <tr><td>Deterministic?</td><td>No (probabilistic)</td><td>Yes (deterministic)</td><td>Depends on perturbation</td></tr>
+    <tr><td>Key parameter</td><td>Temperature / cooling</td><td>Tabu list size</td><td>Perturbation strength</td></tr>
+    <tr><td>Optimal guarantee</td><td>None</td><td>None</td><td>None</td></tr>
+    <tr><td>Classification</td><td>Single-point metaheuristic</td><td>Single-point metaheuristic</td><td>Single-point metaheuristic</td></tr>
+  </table>
+  <div class="callout">
+    All three are LOCAL SEARCH METAHEURISTICS — they work on a single current solution and try to improve it. They differ in HOW they escape local optima: SA uses probability, Tabu uses memory/forbidden zones, ILS uses big jumps + restart.
+  </div>
+</div>
+
+<div class="nav-hint">COS314 Study Pack · Topic 09 of 10 · SA, Tabu &amp; ILS</div>
+</div><!-- /content -->
+
+<script>
+/* ══════════════════════════════════════════
+   TABU GRID DEMO
+══════════════════════════════════════════ */
+const ROWS=5,COLS=7;
+let TS_TENURE=3;
+const COSTS=[
+  [18,15,12,20,22,19,25],
+  [14,10, 8,17,21,16,23],
+  [12, 7, 5, 9,14,11,18],
+  [16, 9, 4, 6, 8,12,20],
+  [20,13, 8, 5, 7,15,22],
+];
+const tsKey=(r,c)=>r+','+c;
+let tsState={}, tsTimer=null;
+
+function tsGetNeighbors(r,c){
+  const ns=[];
+  for(const[dr,dc]of[[-1,0],[1,0],[0,-1],[0,1]]){
+    const nr=r+dr,nc=c+dc;
+    if(nr>=0&&nr<ROWS&&nc>=0&&nc<COLS) ns.push([nr,nc]);
+  }
+  return ns;
+}
+
+function tsReset(){
+  clearInterval(tsTimer); tsTimer=null;
+  document.getElementById('ts-btn-auto').textContent='Auto-run';
+  document.getElementById('ts-btn-step').textContent='Step →';
+  tsState={cur:[1,0],best:[1,0],bestVal:COSTS[1][0],tabu:[],visited:new Set(),iter:0,done:false};
+  tsState.visited.add(tsKey(1,0));
+  document.getElementById('ts-log').innerHTML='Press <b>Step</b> to begin. Best-neighbour selection picks the lowest-cost non-tabu adjacent cell each iteration.';
+  tsRender();
+}
+
+function tsStep(){
+  if(tsState.done) return;
+  const s=tsState; s.iter++;
+  const tabuKeys=new Set(s.tabu.map(t=>t.k));
+  const ns=tsGetNeighbors(...s.cur);
+  let chosen=null,chosenCost=Infinity;
+  for(const[r,c] of ns){
+    const k=tsKey(r,c),isTb=tabuKeys.has(k);
+    if(!isTb&&COSTS[r][c]<chosenCost){chosenCost=COSTS[r][c];chosen=[r,c];}
+    else if(isTb&&COSTS[r][c]<s.bestVal){chosenCost=COSTS[r][c];chosen=[r,c];}
+  }
+  if(!chosen) chosen=ns[0];
+  s.tabu.push({k:tsKey(...s.cur),expires:s.iter+TS_TENURE});
+  s.tabu=s.tabu.filter(t=>t.expires>s.iter);
+  s.cur=chosen; s.visited.add(tsKey(...chosen));
+  if(COSTS[chosen[0]][chosen[1]]<s.bestVal){s.bestVal=COSTS[chosen[0]][chosen[1]];s.best=[...chosen];}
+  document.getElementById('ts-log').innerHTML=`<b>Iter ${s.iter}:</b> Moved to (${chosen[0]},${chosen[1]}) cost ${COSTS[chosen[0]][chosen[1]]}. Tabu list: ${s.tabu.length} entries (tenure=${TS_TENURE}).`;
+  if(s.iter>=20){s.done=true;document.getElementById('ts-btn-step').textContent='Done';document.getElementById('ts-log').innerHTML=`Search complete. Best cost: <b>${s.bestVal}</b> at (${s.best[0]},${s.best[1]}).</`;}
+  tsRender();
+}
+
+function tsAuto(){
+  if(tsTimer){clearInterval(tsTimer);tsTimer=null;document.getElementById('ts-btn-auto').textContent='Auto-run';}
+  else{
+    document.getElementById('ts-btn-auto').textContent='Pause';
+    tsTimer=setInterval(()=>{if(tsState.done){clearInterval(tsTimer);tsTimer=null;document.getElementById('ts-btn-auto').textContent='Auto-run';}else tsStep();},550);
+  }
+}
+
+function tsRender(){
+  const s=tsState,g=document.getElementById('ts-grid');
+  g.innerHTML='';
+  const tabuKeys=new Set(s.tabu.map(t=>t.k));
+  const ns=new Set(tsGetNeighbors(...s.cur).map(([r,c])=>tsKey(r,c)));
+  const bk=tsKey(...s.best);
+  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
+    const k=tsKey(r,c),div=document.createElement('div');
+    div.className='t-cell';
+    const isCur=s.cur[0]===r&&s.cur[1]===c;
+    const isTb=tabuKeys.has(k);
+    const isBest=bk===k&&!isCur;
+    const isN=ns.has(k)&&!isCur&&!isTb;
+    const isV=s.visited.has(k)&&!isCur&&!isBest&&!isN&&!isTb;
+    if(isCur)div.classList.add('curr');
+    else if(isTb)div.classList.add('tabu');
+    else if(isBest)div.classList.add('best');
+    else if(isN)div.classList.add('neigh');
+    else if(isV)div.classList.add('visited');
+    div.innerHTML=`<span class="cv">${COSTS[r][c]}</span><span class="cc">(${r},${c})</span>`;
+    g.appendChild(div);
+  }
+  document.getElementById('ts-iter').textContent=s.iter;
+  document.getElementById('ts-curr').textContent=COSTS[s.cur[0]][s.cur[1]];
+  document.getElementById('ts-best').textContent=s.bestVal;
+  document.getElementById('ts-tabu').textContent=s.tabu.length;
+  const tl=document.getElementById('ts-tags');
+  tl.innerHTML=s.tabu.length===0
+    ?'<span style="font-size:11px;color:#403830">empty</span>'
+    :s.tabu.map(t=>`<span class="tabu-tag">${t.k} <span style="opacity:.5">exp ${t.expires}</span></span>`).join('');
+}
+
+/* ══════════════════════════════════════════
+   TABU CONTINUOUS DEMO
+══════════════════════════════════════════ */
+const tcCV=document.getElementById('tc-canvas');
+const tcCtx=tcCV.getContext('2d');
+const W=800,H=260,PAD=44;
+tcCV.width=W; tcCV.height=H;
+
+function tcF(x){
+  const t=(x-PAD)/(W-2*PAD);
+  return 0.18*Math.sin(t*Math.PI*2.1+0.3)
+       + 0.22*Math.sin(t*Math.PI*3.7+1.1)
+       + 0.12*Math.sin(t*Math.PI*7+2)
+       + 0.08*Math.cos(t*Math.PI*11)
+       + 0.3*(t-0.5)*(t-0.5)*0.6
+       - 0.1*Math.sin(t*Math.PI*1.3);
+}
+function tcSY(v){const mn=-0.45,mx=0.55;return PAD+10+(v-mn)/(mx-mn)*(H-PAD*2-10);}
+
+let tcState={}, tcTimer=null;
+
+function tcReset(){
+  clearInterval(tcTimer);tcTimer=null;
+  document.getElementById('tc-auto').textContent='Auto-run';
+  document.getElementById('tc-btn').textContent='Step →';
+  tcState={x:PAD+18,bestX:PAD+18,bestY:tcF(PAD+18),tabu:[],path:[],iter:0,done:false};
+  tcState.path.push([PAD+18,tcF(PAD+18)]);
+  document.getElementById('tc-log').textContent='Press Step to watch tabu search navigate the continuous landscape.';
+  tcDraw();
+}
+
+function tcStep(){
+  if(tcState.done)return;
+  const s=tcState; s.iter++;
+  const step=26;
+  const cands=[];
+  for(let i=0;i<8;i++){const dx=(Math.random()*2-1)*step;const nx=Math.max(PAD+2,Math.min(W-PAD-2,s.x+dx));cands.push(nx);}
+  let chosen=null,chosenY=Infinity;
+  for(const cx of cands){
+    const cy=tcF(cx);
+    const isTb=s.tabu.some(z=>Math.abs(cx-z.x)<z.r&&z.life>0);
+    if(!isTb&&cy<chosenY){chosenY=cy;chosen=cx;}
+    else if(isTb&&cy<s.bestY){chosen=cx;chosenY=cy;}
+  }
+  if(!chosen)chosen=cands[0];
+  s.tabu.push({x:s.x,r:step*0.6,life:4});
+  s.tabu.forEach(z=>z.life--);
+  s.tabu=s.tabu.filter(z=>z.life>0);
+  s.x=chosen; s.path.push([chosen,tcF(chosen)]);
+  if(tcF(chosen)<s.bestY){s.bestY=tcF(chosen);s.bestX=chosen;}
+  document.getElementById('tc-iter').textContent=s.iter;
+  document.getElementById('tc-cur').textContent=tcF(s.x).toFixed(3);
+  document.getElementById('tc-best').textContent=s.bestY.toFixed(3);
+  document.getElementById('tc-log').textContent=`Iter ${s.iter}: moved to x=${Math.round(s.x-PAD)}, cost=${tcF(s.x).toFixed(3)}. Tabu zones: ${s.tabu.length}. Best: ${s.bestY.toFixed(3)}.`;
+  if(s.iter>=25){s.done=true;document.getElementById('tc-btn').textContent='Done';document.getElementById('tc-log').textContent=`Search complete. Best cost: ${s.bestY.toFixed(3)} at x=${Math.round(s.bestX-PAD)}.`;}
+  tcDraw();
+}
+
+function tcAuto(){
+  if(tcTimer){clearInterval(tcTimer);tcTimer=null;document.getElementById('tc-auto').textContent='Auto-run';}
+  else{document.getElementById('tc-auto').textContent='Pause';tcTimer=setInterval(()=>{if(tcState.done){clearInterval(tcTimer);tcTimer=null;document.getElementById('tc-auto').textContent='Auto-run';}else tcStep();},420);}
+}
+
+function tcDraw(){
+  const s=tcState;
+  tcCtx.fillStyle='#0e1018'; tcCtx.beginPath(); tcCtx.roundRect(0,0,W,H,8); tcCtx.fill();
+  tcCtx.strokeStyle='#1a1c24'; tcCtx.lineWidth=0.5;
+  for(let gx=PAD;gx<=W-PAD;gx+=70){tcCtx.beginPath();tcCtx.moveTo(gx,PAD);tcCtx.lineTo(gx,H-PAD+8);tcCtx.stroke();}
+  tcCtx.strokeStyle='rgba(255,255,255,0.1)';tcCtx.lineWidth=1;
+  tcCtx.beginPath();tcCtx.moveTo(PAD,H-PAD+8);tcCtx.lineTo(W-PAD,H-PAD+8);tcCtx.stroke();
+  tcCtx.fillStyle='rgba(255,255,255,0.25)';tcCtx.font='11px sans-serif';tcCtx.textAlign='center';
+  tcCtx.fillText('x (search space)',W/2,H-6);
+  s.tabu.forEach(z=>{
+    const alpha=(z.life/4)*0.18;
+    tcCtx.fillStyle=`rgba(168,48,48,${alpha})`;
+    tcCtx.strokeStyle=`rgba(168,48,48,${alpha*2})`;
+    tcCtx.lineWidth=1;
+    tcCtx.beginPath();tcCtx.roundRect(z.x-z.r,PAD,z.r*2,H-PAD*2-10,4);tcCtx.fill();tcCtx.stroke();
+  });
+  tcCtx.strokeStyle='#504848';tcCtx.lineWidth=2;
+  tcCtx.beginPath();
+  for(let x=PAD;x<=W-PAD;x++){const y=tcSY(tcF(x));x===PAD?tcCtx.moveTo(x,y):tcCtx.lineTo(x,y);}
+  tcCtx.stroke();
+  if(s.path.length>1){
+    tcCtx.strokeStyle='rgba(83,74,183,0.6)';tcCtx.lineWidth=2;tcCtx.setLineDash([]);
+    tcCtx.beginPath();s.path.forEach(([px,py],i)=>{i===0?tcCtx.moveTo(px,tcSY(py)):tcCtx.lineTo(px,tcSY(py));});tcCtx.stroke();
+    for(let i=1;i<s.path.length-1;i++){const[px,py]=s.path[i];tcCtx.fillStyle='rgba(83,74,183,0.4)';tcCtx.beginPath();tcCtx.arc(px,tcSY(py),3,0,Math.PI*2);tcCtx.fill();}
+  }
+  const bsy=tcSY(s.bestY);
+  tcCtx.fillStyle='#1D9E75';tcCtx.beginPath();tcCtx.moveTo(s.bestX,bsy-12);tcCtx.lineTo(s.bestX-7,bsy-1);tcCtx.lineTo(s.bestX+7,bsy-1);tcCtx.closePath();tcCtx.fill();
+  tcCtx.strokeStyle='#1c2018';tcCtx.lineWidth=1;tcCtx.setLineDash([3,3]);
+  tcCtx.beginPath();tcCtx.moveTo(s.bestX,bsy);tcCtx.lineTo(s.bestX,H-PAD+8);tcCtx.stroke();tcCtx.setLineDash([]);
+  const csy=tcSY(tcF(s.x));
+  tcCtx.fillStyle='#a06010';tcCtx.strokeStyle='#604008';tcCtx.lineWidth=2;
+  tcCtx.beginPath();tcCtx.arc(s.x,csy,7,0,Math.PI*2);tcCtx.fill();tcCtx.stroke();
+}
+
+/* ══════════════════════════════════════════
+   ILS DEMO
+══════════════════════════════════════════ */
+const ilsCV=document.getElementById('ils-canvas');
+const ilsCtx=ilsCV.getContext('2d');
+const IW=800,IH=280,IPAD=44;
+ilsCV.width=IW; ilsCV.height=IH;
+
+let ILS_PERT=2;
+const ILS_MAX_RUNS=5,ILS_LS_STEPS=12;
+
+function ilsF(x){
+  const t=(x-IPAD)/(IW-2*IPAD);
+  return 0.20*Math.sin(t*Math.PI*2.2+0.5)
+       + 0.18*Math.sin(t*Math.PI*4.1+1.2)
+       + 0.13*Math.sin(t*Math.PI*7.3+2.1)
+       + 0.07*Math.cos(t*Math.PI*12+0.3)
+       + 0.25*(t-0.45)*(t-0.45)
+       - 0.08*Math.sin(t*Math.PI*1.5);
+}
+function ilsSY(v){const mn=-0.42,mx=0.52;return IPAD+10+(v-mn)/(mx-mn)*(IH-IPAD*2-10);}
+
+let ilsState={},ilsTimer=null;
+
+function ilsLSStep(x){
+  const step=18;
+  const cands=[x-step,x+step,x-step*0.5,x+step*0.5];
+  let best=x,bestY=ilsF(x);
+  for(const cx of cands){if(cx<IPAD+2||cx>IW-IPAD-2)continue;if(ilsF(cx)<bestY){bestY=ilsF(cx);best=cx;}}
+  return best;
+}
+function ilsIsMin(x){return Math.abs(ilsLSStep(x)-x)<0.5;}
+function ilsPerturb(x){
+  const str=ILS_PERT,jMin=40*str,jMax=80*str;
+  const dist=jMin+Math.random()*(jMax-jMin),dir=Math.random()<0.5?1:-1;
+  return Math.max(IPAD+5,Math.min(IW-IPAD-5,x+dist*dir));
+}
+
+function ilsSetPhase(ph){
+  const ids=['ils-ph-ls','ils-ph-p','ils-ph-a'];
+  ids.forEach(id=>document.getElementById(id).className='phase-pill');
+  if(ph==='ls')document.getElementById('ils-ph-ls').classList.add('p-ls');
+  if(ph==='perturb')document.getElementById('ils-ph-p').classList.add('p-pert');
+  if(ph==='accept')document.getElementById('ils-ph-a').classList.add('p-acc');
+}
+
+function ilsReset(){
+  clearInterval(ilsTimer);ilsTimer=null;
+  document.getElementById('ils-auto').textContent='Auto-run';
+  document.getElementById('ils-btn').textContent='Step →';
+  const sx=IPAD+20;
+  ilsState={x:sx,bestX:sx,bestY:ilsF(sx),run:1,lsStep:0,phase:'ls',total:0,done:false,
+    lsPaths:[],curPath:[[sx,ilsF(sx)]],pertLine:null,optima:[]};
+  ilsSetPhase('ls');
+  document.getElementById('ils-log').textContent='Press Step or Auto-run. ILS = local search → perturb → local search → repeat.';
+  ilsDraw();
+}
+
+function ilsStep(){
+  if(ilsState.done)return;
+  const s=ilsState; s.total++;
+  if(s.phase==='ls'){
+    const nx=ilsLSStep(s.x);
+    s.curPath.push([nx,ilsF(nx)]);
+    s.x=nx; s.lsStep++;
+    if(ilsIsMin(s.x)||s.lsStep>=ILS_LS_STEPS){
+      s.optima.push([s.x,ilsF(s.x)]);
+      if(s.run>=ILS_MAX_RUNS){
+        s.done=true; s.lsPaths.push([...s.curPath]);
+        document.getElementById('ils-log').textContent=`Complete. Global best: ${s.bestY.toFixed(3)} at x=${Math.round(s.bestX-IPAD)}.`;
+        document.getElementById('ils-btn').textContent='Done'; ilsSetPhase('ls');
+      } else {
+        s.phase='perturb'; ilsSetPhase('perturb');
+        document.getElementById('ils-log').textContent=`Run ${s.run}: settled at x=${Math.round(s.x-IPAD)}, cost=${ilsF(s.x).toFixed(3)}. Now perturbing — jumping to a new basin.`;
+      }
+    } else {
+      ilsSetPhase('ls');
+      document.getElementById('ils-log').textContent=`Run ${s.run}, step ${s.lsStep}: at x=${Math.round(s.x-IPAD)}, cost=${ilsF(s.x).toFixed(3)} — descending.`;
+    }
+  } else if(s.phase==='perturb'){
+    const ox=s.x,nx=ilsPerturb(s.x);
+    s.pertLine={x1:ox,y1:ilsF(ox),x2:nx,y2:ilsF(nx)};
+    s.lsPaths.push([...s.curPath]); s.curPath=[[nx,ilsF(nx)]];
+    s.x=nx; s.lsStep=0; s.phase='accept'; ilsSetPhase('accept');
+    document.getElementById('ils-log').textContent=`Perturbed from x=${Math.round(ox-IPAD)} → x=${Math.round(nx-IPAD)}, cost=${ilsF(nx).toFixed(3)}. Now running local search from here.`;
+  } else {
+    s.run++; s.phase='ls'; ilsSetPhase('ls');
+    const acc=document.getElementById('ils-acc').value;
+    const accepted=acc==='always'||ilsF(s.x)<s.bestY+0.001;
+    if(ilsF(s.x)<s.bestY){s.bestY=ilsF(s.x);s.bestX=s.x;}
+    document.getElementById('ils-log').textContent=`Starting run ${s.run} from x=${Math.round(s.x-IPAD)}, cost=${ilsF(s.x).toFixed(3)}. ${accepted?'Accepted as new home base.':'Searching but may revert if worse.'}`;
+  }
+  if(ilsF(s.x)<s.bestY){s.bestY=ilsF(s.x);s.bestX=s.x;}
+  document.getElementById('ils-steps').textContent=s.total;
+  document.getElementById('ils-run').textContent=s.run+'/'+ILS_MAX_RUNS;
+  document.getElementById('ils-cur').textContent=ilsF(s.x).toFixed(2);
+  document.getElementById('ils-best').textContent=s.bestY.toFixed(2);
+  ilsDraw();
+}
+
+function ilsAuto(){
+  if(ilsTimer){clearInterval(ilsTimer);ilsTimer=null;document.getElementById('ils-auto').textContent='Auto-run';}
+  else{
+    document.getElementById('ils-auto').textContent='Pause';
+    ilsTimer=setInterval(()=>{if(ilsState.done){clearInterval(ilsTimer);ilsTimer=null;document.getElementById('ils-auto').textContent='Auto-run';}else ilsStep();},380);
+  }
+}
+
+const RUN_COLS=['#534AB7','#1D9E75','#BA7517','#D4537E','#378ADD'];
+
+function ilsDraw(){
+  const s=ilsState;
+  ilsCtx.fillStyle='#0e1018';ilsCtx.beginPath();ilsCtx.roundRect(0,0,IW,IH,8);ilsCtx.fill();
+  ilsCtx.strokeStyle='#1a1c24';ilsCtx.lineWidth=0.5;
+  for(let gx=IPAD;gx<=IW-IPAD;gx+=70){ilsCtx.beginPath();ilsCtx.moveTo(gx,IPAD);ilsCtx.lineTo(gx,IH-IPAD+8);ilsCtx.stroke();}
+  ilsCtx.strokeStyle='rgba(255,255,255,0.1)';ilsCtx.lineWidth=1;
+  ilsCtx.beginPath();ilsCtx.moveTo(IPAD,IH-IPAD+8);ilsCtx.lineTo(IW-IPAD,IH-IPAD+8);ilsCtx.stroke();
+  ilsCtx.fillStyle='rgba(255,255,255,0.25)';ilsCtx.font='11px sans-serif';ilsCtx.textAlign='center';
+  ilsCtx.fillText('x (search space)',IW/2,IH-6);
+  ilsCtx.strokeStyle='#504848';ilsCtx.lineWidth=2;ilsCtx.beginPath();
+  for(let x=IPAD;x<=IW-IPAD;x++){const y=ilsSY(ilsF(x));x===IPAD?ilsCtx.moveTo(x,y):ilsCtx.lineTo(x,y);}
+  ilsCtx.stroke();
+  s.lsPaths.forEach((path,i)=>{
+    const col=RUN_COLS[i%RUN_COLS.length];
+    ilsCtx.strokeStyle=col;ilsCtx.lineWidth=2;ilsCtx.globalAlpha=0.5;ilsCtx.setLineDash([]);
+    ilsCtx.beginPath();path.forEach(([px,py],j)=>{j===0?ilsCtx.moveTo(px,ilsSY(py)):ilsCtx.lineTo(px,ilsSY(py));});ilsCtx.stroke();
+    ilsCtx.globalAlpha=1;
+    if(path.length>0){const[lx,ly]=path[path.length-1];ilsCtx.fillStyle=col;ilsCtx.beginPath();ilsCtx.arc(lx,ilsSY(ly),5,0,Math.PI*2);ilsCtx.fill();}
+  });
+  if(s.curPath.length>1){
+    const col=RUN_COLS[(s.run-1)%RUN_COLS.length];
+    ilsCtx.strokeStyle=col;ilsCtx.lineWidth=2.5;ilsCtx.globalAlpha=1;ilsCtx.setLineDash([]);
+    ilsCtx.beginPath();s.curPath.forEach(([px,py],j)=>{j===0?ilsCtx.moveTo(px,ilsSY(py)):ilsCtx.lineTo(px,ilsSY(py));});ilsCtx.stroke();
+  }
+  if(s.pertLine){
+    const pl=s.pertLine;
+    ilsCtx.strokeStyle='#a06010';ilsCtx.lineWidth=1.5;ilsCtx.setLineDash([6,4]);ilsCtx.globalAlpha=0.9;
+    ilsCtx.beginPath();ilsCtx.moveTo(pl.x1,ilsSY(pl.y1));ilsCtx.lineTo(pl.x2,ilsSY(pl.y2));ilsCtx.stroke();
+    ilsCtx.setLineDash([]);ilsCtx.globalAlpha=1;
+    const mx=(pl.x1+pl.x2)/2,my=(ilsSY(pl.y1)+ilsSY(pl.y2))/2-10;
+    ilsCtx.fillStyle='#a06010';ilsCtx.font='500 11px sans-serif';ilsCtx.textAlign='center';ilsCtx.fillText('perturb',mx,my);
+  }
+  s.optima.forEach(([ox,oy],i)=>{
+    const col=RUN_COLS[i%RUN_COLS.length];
+    ilsCtx.strokeStyle=col;ilsCtx.lineWidth=1.5;ilsCtx.fillStyle='#0e1018';
+    ilsCtx.beginPath();ilsCtx.arc(ox,ilsSY(oy),6,0,Math.PI*2);ilsCtx.fill();ilsCtx.stroke();
+  });
+  const bsy=ilsSY(s.bestY);
+  ilsCtx.fillStyle='#1D9E75';ilsCtx.beginPath();ilsCtx.moveTo(s.bestX,bsy-14);ilsCtx.lineTo(s.bestX-7,bsy-2);ilsCtx.lineTo(s.bestX+7,bsy-2);ilsCtx.closePath();ilsCtx.fill();
+  const csy=ilsSY(ilsF(s.x));
+  ilsCtx.fillStyle='#a06010';ilsCtx.strokeStyle='#604008';ilsCtx.lineWidth=2;ilsCtx.setLineDash([]);
+  ilsCtx.beginPath();ilsCtx.arc(s.x,csy,7,0,Math.PI*2);ilsCtx.fill();ilsCtx.stroke();
+}
+
+/* ── Init all ── */
+tsReset(); tcReset(); ilsReset();
+</script>
+</body>
+</html>

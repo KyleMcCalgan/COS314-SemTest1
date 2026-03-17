@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>COS314 | Heuristics</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  :root { --accent: #3aa878; --accent2: #8838a0; --accent3: #b8903c; }
+  .hero::before { content: '02'; }
+</style>
+</head>
+<body>
+<div class="hero">
+  <div class="tag">COS314 · Topic 02</div>
+  <h1>Heuristics &amp;<br>Heuristic Functions</h1>
+  <p class="subtitle">Smart guesses that guide search toward the goal</p>
+</div>
+
+<div class="content">
+
+  <div class="section">
+    <h2>What is a Heuristic?</h2>
+    <p>A heuristic is a <strong>rule of thumb</strong> — a problem-specific piece of knowledge that helps guide a search towards a solution faster, without guaranteeing the optimal path.</p>
+
+    <div class="card">
+      <strong>Formal Definition</strong>
+      A heuristic function h(n) is an <em>evaluation function</em> that estimates the cost from node n to the goal node. It uses domain knowledge to assess how "promising" a state is.
+    </div>
+
+    <p>Without heuristics, we'd have to explore every possible state blindly (BFS/DFS). With heuristics, we can prioritise states that look more likely to lead to the goal — dramatically reducing search time.</p>
+  </div>
+
+  <div class="section">
+    <h2>Heuristic Value Scale</h2>
+    <p>Heuristic values h(n) have specific meanings based on their magnitude:</p>
+
+    <div class="scale">
+      <div class="scale-item s0">h(n) = 0</div>
+      <div class="scale-item s1">h(n) small</div>
+      <div class="scale-item s2">h(n) large</div>
+      <div class="scale-item sinf">h(n) = ∞</div>
+    </div>
+    <div class="scale-label">→ Goal state → Close to goal → Far from goal → Dead end (never explore)</div>
+
+    <div class="callout">
+      Heuristic values are ALWAYS ≥ 0. A value of 0 means we ARE at the goal. Infinity means this node will never lead to the goal — skip it entirely.
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Key Properties of Heuristics</h2>
+
+    <div class="grid2">
+      <div class="card">
+        <strong>Admissible Heuristic</strong>
+        h(n) ≤ h*(n) for all nodes. The heuristic NEVER overestimates the actual cost to the goal. This is required for A* to guarantee an optimal solution.
+      </div>
+      <div class="card pink">
+        <strong>Non-admissible Heuristic</strong>
+        h(n) > h*(n) for some nodes. Overestimates the cost — may find a suboptimal path. Can still be useful but loses the optimality guarantee.
+      </div>
+      <div class="card yellow">
+        <strong>Good Heuristic</strong>
+        Doesn't require long computation time. Closely approximates the true cost. More accurately informed = fewer nodes expanded.
+      </div>
+      <div class="card">
+        <strong>Better Heuristic h₁ vs h₂</strong>
+        h₁ is better than h₂ if h₁ causes fewer nodes to be expanded during the search. More informed heuristics dominate.
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Heuristic Functions for the 8-Puzzle</h2>
+    <p>Three classic heuristics for the 8-puzzle problem — each increasingly informative:</p>
+
+    <table>
+      <tr>
+        <th>Heuristic</th>
+        <th>How it works</th>
+        <th>Admissible?</th>
+        <th>Notes</th>
+      </tr>
+      <tr>
+        <td><strong>Tiles out of place</strong></td>
+        <td>Count how many tiles are NOT in their goal position</td>
+        <td>✅ Yes</td>
+        <td>Each tile needs at least 1 move to reach its goal — never overestimates</td>
+      </tr>
+      <tr>
+        <td><strong>Manhattan Distance</strong></td>
+        <td>For each tile, count how many squares it needs to move horizontally + vertically to reach its goal position. Sum all tiles.</td>
+        <td>✅ Yes</td>
+        <td>More informative than tiles-out-of-place. Does not count diagonal moves or blocked paths.</td>
+      </tr>
+      <tr>
+        <td><strong>Tile Reversals × 2</strong></td>
+        <td>When two tiles need to swap positions directly, multiply count by 2</td>
+        <td>✅ Yes</td>
+        <td>Handles a special hard case — swaps require extra moves</td>
+      </tr>
+    </table>
+
+    <div class="ascii">Initial State:    Goal State:
+┌───┬───┬───┐    ┌───┬───┬───┐
+│ 2 │ 8 │ 3 │    │ 1 │ 2 │ 3 │
+├───┼───┼───┤    ├───┼───┼───┤
+│ 1 │ 6 │ 4 │    │ 8 │   │ 4 │
+├───┼───┼───┤    ├───┼───┼───┤
+│ 7 │   │ 5 │    │ 7 │ 6 │ 5 │
+└───┴───┴───┘    └───┴───┴───┘
+
+Tiles out of place: {2, 8, 1, 6} = 4 tiles wrong (wait, let's check each)
+  1→wrong pos, 2→wrong pos, 8→wrong pos, 6→wrong pos = 4 tiles out of place (h=4)
+
+Manhattan Distance:
+  Tile 2: needs to move 1 right               → 1
+  Tile 8: needs to move 1 left, 1 up          → 2
+  Tile 1: needs to move 1 up                  → 1
+  Tile 6: needs to move 1 down                → 1
+  Total h = 5</div>
+
+    <div class="callout">
+      Manhattan Distance is ALWAYS ≥ Tiles Out of Place. This means it expands fewer nodes. More informed = better. Both are admissible since neither overestimates real moves needed.
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>How Heuristics Are Defined</h2>
+    <p>Heuristics are typically defined as a <strong>simplified/relaxed version of the problem</strong>. We pretend certain constraints don't apply, which lets us compute a lower bound on actual cost.</p>
+
+    <div class="card pink">
+      <strong>Example — 8-Puzzle relaxation</strong>
+      Real puzzle: a tile can only move to an adjacent blank space.<br>
+      Relaxed version for "tiles out of place": a tile can move to its goal position in a single step.<br>
+      This relaxation makes h easy to compute, and since it ignores real constraints, it can only UNDERESTIMATE (= admissible).
+    </div>
+
+    <div class="card yellow">
+      <strong>Difficulty in practice</strong>
+      Experience shows it is VERY DIFFICULT to devise good heuristics. Heuristics are fallible — they sometimes lead the search astray. No heuristic is perfect.
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Why Heuristics Matter: Weak vs Strong Search</h2>
+    <p>Search methods that use heuristics are called <strong>"weak" search methods</strong> — not because they're bad, but because the knowledge they incorporate is imprecise. It <em>usually</em> helps but doesn't always.</p>
+
+    <div class="grid2">
+      <div class="card">
+        <strong>Without heuristics (BFS/DFS)</strong>
+        <ul>
+          <li>Explores blindly</li>
+          <li>Complete state space may be needed</li>
+          <li>Very slow for large spaces</li>
+          <li>Guaranteed to find goal (BFS)</li>
+        </ul>
+      </div>
+      <div class="card">
+        <strong>With heuristics (Best-First, A*)</strong>
+        <ul>
+          <li>Guided exploration</li>
+          <li>Dramatically fewer nodes expanded</li>
+          <li>Much faster in practice</li>
+          <li>May miss optimal path (unless admissible)</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="nav-hint">COS314 Study Pack · Topic 02 of 10 · Heuristics</div>
+</div>
+</body>
+</html>

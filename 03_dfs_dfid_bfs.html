@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>COS314 | DFS, DFID & BFS</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  :root { --accent: #b05848; --accent2: #4080a8; --accent3: #6838b0; }
+  .hero::before { content: '03'; }
+</style>
+</head>
+<body>
+<div class="hero">
+  <div class="tag">COS314 · Topics 03–05</div>
+  <h1>DFS · DFID · BFS</h1>
+  <p class="subtitle">The three fundamental uninformed search strategies</p>
+</div>
+
+<div class="content">
+
+  <!-- ======================== DFS ======================== -->
+  <div class="section">
+    <h2>Depth First Search (DFS)</h2>
+
+    <p>DFS dives as deep as possible down one branch before backtracking. It uses a <strong>stack</strong> (LIFO) — the OPEN list in the algorithm always has new children placed at the <strong>left end</strong> (front).</p>
+
+    <div class="card">
+      <strong>The Core Idea</strong>
+      Go deep first. When you hit a dead end or exhaust a branch, backtrack and try the next option. Like exploring a maze by always turning left.
+    </div>
+
+    <div class="code">def dfs(in Start, out State)
+  open   = [Start]       // stack (LIFO)
+  closed = []
+  State  = failure
+
+  while (open ≠ []) AND (State ≠ success)
+    X ← remove LEFTMOST node from open
+
+    if X == goal
+      State = success
+    else
+      children ← generate children of X
+      put X on closed
+      eliminate children already on open or closed   // avoid revisits
+      put remaining children on LEFT end of open     // ← KEY: left = DFS
+
+  return State</div>
+
+    <div class="callout">
+      The ONLY difference between DFS and BFS in code is WHERE children are added: DFS = LEFT end (stack). BFS = RIGHT end (queue). Memorise this!
+    </div>
+
+    <h3>Worked Example</h3>
+    <p>Legal moves: A→B,C | B→D,E | C→F,G | D→I,J | I→K,L &nbsp;&nbsp; Start: A, Goal: J</p>
+
+    <div class="ascii">Step | OPEN          | CLOSED     | X  | X's Children
+─────┼───────────────┼────────────┼────┼─────────────
+  1  | [A]           | []         |    |
+  2  | []            |            | A  | B,C
+  3  | [B,C]         | [A]        |    |
+  4  | [C]           |            | B  | D,E
+  5  | [D,E,C]       | [A,B]      |    |
+  6  | [E,C]         |            | D  | I,J
+  7  | [I,J,E,C]     | [A,B,D]    |    |
+  8  | [J,E,C]       |            | I  | K,L
+  9  | [K,L,J,E,C]   | [A,B,D,I]  |    |
+ 10  | [L,J,E,C]     |            | K  | none
+ 11  | [J,E,C]       | [A,B,D,I,K]|    |
+ 12  | [E,C]         |            | J  | → SUCCESS ✓</div>
+
+    <p>Order visited: A → B → D → I → K → <strong>J ✓</strong></p>
+
+    <h3>Properties of DFS</h3>
+    <div class="key-diff">
+      <div class="diff-card d"><div class="label">Time</div><div class="val">O(b^m)</div><p style="font-size:12px;color:var(--muted);margin-top:8px;">b=branching, m=max depth</p></div>
+      <div class="diff-card d"><div class="label">Space</div><div class="val">O(bm)</div><p style="font-size:12px;color:var(--muted);margin-top:8px;">Only one path in memory</p></div>
+      <div class="diff-card d"><div class="label">Optimal?</div><div class="val">✗ No</div><p style="font-size:12px;color:var(--muted);margin-top:8px;">May find long suboptimal path</p></div>
+    </div>
+
+    <ul>
+      <li>Can get "lost" — may follow infinite branches (use depth bound)</li>
+      <li>More efficient when branching factor is high</li>
+      <li>Solution path may be long and suboptimal</li>
+      <li>Low memory usage — only stores one path at a time</li>
+    </ul>
+  </div>
+
+  <hr class="sep">
+
+  <!-- ======================== DFID ======================== -->
+  <div class="section">
+    <h2 class="purple">Depth First Search with Iterative Deepening (DFID)</h2>
+
+    <p>DFID solves DFS's main problem (getting lost in deep branches) by running DFS repeatedly with <strong>increasing depth limits</strong>. Each iteration allows one more level of depth.</p>
+
+    <div class="card purple">
+      <strong>The Core Idea</strong>
+      Run DFS with depth limit = 1. If not found, increase to 2. Keep increasing until found. This gives DFS the space efficiency + BFS's completeness (always finds shortest path).
+    </div>
+
+    <div class="code">procedure DFID(initial_state, goal_states)
+  search_depth = 1
+
+  while (solution path not found)
+    run dfs(initial_state, goal_states) with depth bound = search_depth
+    search_depth = search_depth + 1</div>
+
+    <h3>Example — Iterating through depth levels</h3>
+    <div class="ascii">Iteration 1 (depth limit = 1):
+  Open: [A] → expand A → [B,C]
+  B hits limit, C hits limit → FAIL
+
+Iteration 2 (depth limit = 2):
+  A → B → D (limit), E (limit)   ← D and E hit limit
+  A → C → F (limit), G (limit)   ← fail
+
+Iteration 3 (depth limit = 3):
+  A → B → D → I, J  → J found! → SUCCESS ✓</div>
+
+    <div class="callout purple">
+      DFID seems wasteful (re-visits earlier nodes), but nodes at early depths are exponentially fewer than deep nodes. The overhead is small. DFID is GUARANTEED to find the shortest path.
+    </div>
+
+    <h3>When to prefer DFID over plain DFS</h3>
+    <ul>
+      <li>State space has <strong>infinite depth</strong> (DFS would loop forever)</li>
+      <li>You need guarantee of shortest path (like BFS) but with less memory</li>
+      <li>You don't know the depth of the solution in advance</li>
+    </ul>
+
+    <div class="key-diff">
+      <div class="diff-card i"><div class="label">Space</div><div class="val">O(bd)</div><p style="font-size:12px;color:var(--muted);margin-top:8px;">Like DFS — very efficient</p></div>
+      <div class="diff-card i"><div class="label">Optimal?</div><div class="val">✓ Yes</div><p style="font-size:12px;color:var(--muted);margin-top:8px;">Finds shortest path</p></div>
+      <div class="diff-card i"><div class="label">Complete?</div><div class="val">✓ Yes</div><p style="font-size:12px;color:var(--muted);margin-top:8px;">Always terminates</p></div>
+    </div>
+  </div>
+
+  <hr class="sep">
+
+  <!-- ======================== BFS ======================== -->
+  <div class="section">
+    <h2 class="blue">Breadth First Search (BFS)</h2>
+
+    <p>BFS explores all nodes at one level before moving to the next. It uses a <strong>queue</strong> (FIFO) — new children are added to the <strong>right end</strong> of OPEN.</p>
+
+    <div class="card blue">
+      <strong>The Core Idea</strong>
+      Explore level by level, left to right. Never go deeper until all nodes at the current depth are visited. Guarantees the shortest path is found first.
+    </div>
+
+    <div class="code">def bfs(in Start, out State)
+  open   = [Start]       // queue (FIFO)
+  closed = []
+  State  = failure
+
+  while (open ≠ []) AND (State ≠ success)
+    X ← remove LEFTMOST node from open
+
+    if X == goal
+      State = success
+    else
+      children ← generate children of X
+      put X on closed
+      eliminate children already on open or closed
+      put remaining children on RIGHT end of open    // ← KEY: right = BFS
+
+  return State</div>
+
+    <h3>Worked Example (same problem as DFS)</h3>
+    <div class="ascii">Step | OPEN            | CLOSED       | X  | X's Children
+─────┼─────────────────┼──────────────┼────┼─────────────
+  1  | [A]             | []           |    |
+  2  | []              |              | A  | B,C
+  3  | [B,C]           | [A]          |    |
+  4  | [C]             |              | B  | D,E
+  5  | [C,D,E]         | [A,B]        |    |        ← D,E added to RIGHT
+  6  | [D,E]           |              | C  | F,G
+  7  | [D,E,F,G]       | [A,B,C]      |    |
+  8  | [E,F,G]         |              | D  | I,J
+  9  | [E,F,G,I,J]     | [A,B,C,D]    |    |
+ 10  | [F,G,I,J]       |              | E  | (goal!)  → SUCCESS ✓</div>
+
+    <p>BFS visits nodes level by level: A | B,C | D,E,F,G | I,J,... — always finds the SHALLOWEST goal first.</p>
+
+    <h3>Properties of BFS</h3>
+    <div class="key-diff">
+      <div class="diff-card b"><div class="label">Time</div><div class="val">O(b^d)</div><p style="font-size:12px;color:var(--muted);margin-top:8px;">d=depth of solution</p></div>
+      <div class="diff-card b"><div class="label">Space</div><div class="val">O(b^d)</div><p style="font-size:12px;color:var(--muted);margin-top:8px;">Stores entire frontier — BAD</p></div>
+      <div class="diff-card b"><div class="label">Optimal?</div><div class="val">✓ Yes</div><p style="font-size:12px;color:var(--muted);margin-top:8px;">Always finds shortest</p></div>
+    </div>
+
+    <ul>
+      <li>Guaranteed to find the <strong>shortest path</strong> (fewest steps)</li>
+      <li>High branching factor causes <strong>combinatorial explosion</strong> — huge memory use</li>
+      <li>Can be slow when solution is deep</li>
+    </ul>
+  </div>
+
+  <hr class="sep">
+
+  <!-- ======================== COMPARISON ======================== -->
+  <div class="section">
+    <h2>DFS vs BFS vs DFID — Side by Side</h2>
+
+    <table>
+      <tr>
+        <th>Property</th>
+        <th class="b">BFS</th>
+        <th>DFS</th>
+        <th>DFID</th>
+      </tr>
+      <tr>
+        <td>Data structure</td>
+        <td>Queue (FIFO)</td>
+        <td>Stack (LIFO)</td>
+        <td>Stack (LIFO)</td>
+      </tr>
+      <tr>
+        <td>Add children to</td>
+        <td>RIGHT of open</td>
+        <td>LEFT of open</td>
+        <td>LEFT of open</td>
+      </tr>
+      <tr>
+        <td>Optimal (shortest path)?</td>
+        <td>✅ Yes</td>
+        <td>❌ No</td>
+        <td>✅ Yes</td>
+      </tr>
+      <tr>
+        <td>Complete?</td>
+        <td>✅ Yes</td>
+        <td>❌ No (needs depth bound)</td>
+        <td>✅ Yes</td>
+      </tr>
+      <tr>
+        <td>Memory use</td>
+        <td>HIGH O(b^d)</td>
+        <td>LOW O(bm)</td>
+        <td>LOW O(bd)</td>
+      </tr>
+      <tr>
+        <td>Time use</td>
+        <td>O(b^d)</td>
+        <td>O(b^m)</td>
+        <td>O(b^d)</td>
+      </tr>
+      <tr>
+        <td>Best when</td>
+        <td>Short solution, small branching factor</td>
+        <td>High branching factor, deep search OK</td>
+        <td>Unknown depth, need shortest path + low memory</td>
+      </tr>
+    </table>
+
+    <div class="callout">
+      For the test: BFS = RIGHT end. DFS = LEFT end. DFID = DFS + increasing depth limit. DFID gives you the best of both worlds: BFS optimality + DFS memory efficiency.
+    </div>
+  </div>
+
+  <div class="nav-hint">COS314 Study Pack · Topics 03–05 of 10 · DFS, DFID & BFS</div>
+</div>
+</body>
+</html>

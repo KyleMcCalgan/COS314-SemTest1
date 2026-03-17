@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>COS314 | Minimax & Alpha-Beta</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  :root { --accent: #a83880; --accent2: #38a888; --accent3: #b87038; }
+  .hero::before { content: '07'; }
+</style>
+</head>
+<body>
+<div class="hero">
+  <div class="tag">COS314 · Topics 07–08</div>
+  <h1>Minimax Algorithm<br>&amp; Alpha-Beta Pruning</h1>
+  <p class="subtitle">Game tree search for two-player zero-sum games</p>
+</div>
+
+<div class="content">
+
+  <!-- ======================== MINIMAX ======================== -->
+  <div class="section">
+    <h2>Minimax Algorithm</h2>
+
+    <p>Minimax is used in <strong>two-player zero-sum games</strong> (chess, tic-tac-toe, Go) where one player winning means the other loses. Both players play optimally.</p>
+
+    <div class="grid2">
+      <div class="card">
+        <strong>MAX Player</strong>
+        Wants to MAXIMISE their score. Picks the child with the HIGHEST value. Assumes worst-case: starts at -∞.
+      </div>
+      <div class="card teal">
+        <strong>MIN Player</strong>
+        Wants to MINIMISE MAX's score. Picks the child with the LOWEST value. Assumes worst-case: starts at +∞.
+      </div>
+    </div>
+
+    <h3>The Algorithm</h3>
+    <p>Minimax uses DFS to traverse the entire game tree, assigning values upward:</p>
+
+    <div class="code">MINIMAX ALGORITHM:
+Repeat:
+  1. If at a leaf node (or depth limit reached):
+       return the static value of the state
+  2. If at a MIN level:
+       apply minimax to all children
+       return the MINIMUM of the results
+  3. If at a MAX level:
+       apply minimax to all children
+       return the MAXIMUM of the results
+Until entire tree is traversed</div>
+
+    <h3>Worked Example — Step by Step</h3>
+    <div class="ascii">Tree structure:
+                    A           ← MAX level
+                  /   \
+                B       C       ← MIN level
+               / \     / \
+              D   E   F   G     ← MAX level
+             /\ /\   /\  /\
+             3 8 9 2 4 -8 8 2   ← leaf values (utility)
+
+Step 1: DFS to leaves. Propagate up.
+  D = max(3, 8)   = 8    (MAX node picks highest)
+  E = max(9, 2)   = 9    (MAX node picks highest)
+  F = max(4, -8)  = 4    (MAX node picks highest)
+  G = max(8, 2)   = 8    (MAX node picks highest)
+
+Step 2: MIN level
+  B = min(D=8, E=9) = min(8, 9) = 8
+  C = min(F=4, G=8) = min(4, 8) = 4
+
+Step 3: MAX level (root)
+  A = max(B=8, C=4) = max(8, 4) = 8
+
+RESULT: MAX should choose to go to B (value = 8)
+Note: Even though E=9 exists under B, MIN prevents MAX from accessing it.</div>
+
+    <div class="callout">
+      MAX always picks the child with HIGHEST value. MIN always picks LOWEST. The values bubble up from leaves. The root value tells you the optimal outcome assuming both play perfectly.
+    </div>
+
+    <h3>Characteristics of Minimax</h3>
+    <ul>
+      <li>Uses <strong>DFS</strong> internally to traverse the tree</li>
+      <li>Always finds optimal path in a <strong>finite game tree</strong></li>
+      <li>Struggles with high <strong>branching factor</strong> (chess has ~35 moves per turn)</li>
+      <li>For large games, trees are generated only to a fixed <strong>depth (ply)</strong></li>
+      <li>At cut-off depth: use a <strong>heuristic value</strong> instead of win/draw/loss</li>
+      <li><strong>Horizon effect</strong>: a promising path that's not detected within the search depth</li>
+    </ul>
+
+    <div class="card orange">
+      <strong>Leaf values in full vs limited search</strong>
+      FULL search: 1 (win), 0 (draw), -1 (loss) assigned to terminal states.<br>
+      DEPTH-LIMITED: use a heuristic function at the cutoff depth. In chess: count of remaining white vs black pieces (positive = good for MAX, negative = bad).
+    </div>
+  </div>
+
+  <hr class="sep">
+
+  <!-- ======================== ALPHA-BETA ======================== -->
+  <div class="section">
+    <h2 class="teal">Alpha-Beta Pruning</h2>
+
+    <p>Alpha-beta pruning optimises Minimax by <strong>skipping branches that cannot affect the final decision</strong>. It returns the SAME result as Minimax but explores far fewer nodes.</p>
+
+    <div class="ab-rule">
+      <div class="ab-formula">IF α ≥ β → PRUNE the branch</div>
+      <div class="ab-sub">Stop exploring this subtree — it won't change the result</div>
+    </div>
+
+    <div class="grid2">
+      <div class="card teal">
+        <strong>Alpha (α)</strong>
+        Best value that MAX can guarantee. Starts at -∞. Only updated by MAX nodes (going up). MAX will NEVER accept a value less than α.
+      </div>
+      <div class="card">
+        <strong>Beta (β)</strong>
+        Best value that MIN can guarantee. Starts at +∞. Only updated by MIN nodes (going up). MIN will NEVER accept a value greater than β.
+      </div>
+    </div>
+
+    <h3>Pruning Logic</h3>
+    <ul>
+      <li><strong>Beta cutoff (α-cut)</strong>: At a MAX node, if α ≥ β, prune remaining children. MIN already has a better option elsewhere — MAX will never get to use this branch.</li>
+      <li><strong>Alpha cutoff (β-cut)</strong>: At a MIN node, if β ≤ α, prune remaining children. MAX already has a better option elsewhere — MIN will never allow this path.</li>
+    </ul>
+
+    <h3>Alpha-Beta Algorithm</h3>
+    <div class="code">procedure MINIMAX(node, α, β):
+  if node is a leaf:
+    return value(node)
+
+  if node is MAX:
+    for each child c:
+      α ← max(α, MINIMAX(c, α, β))
+      if α ≥ β: BREAK    // Beta cutoff — prune remaining children
+    return α
+
+  else (node is MIN):
+    for each child c:
+      β ← min(β, MINIMAX(c, α, β))
+      if β ≤ α: BREAK    // Alpha cutoff — prune remaining children
+    return β</div>
+
+    <h3>Step-by-Step Trace Example</h3>
+    <div class="ascii">Tree: A(MAX) → B(MIN) → D(MAX) → H(MIN)[4,5], I(MIN)[3,7]
+            α=-∞, β=+∞
+
+Step 1: DFS to H (MIN node). β = min(+∞, 4) = 4. Check next child: 5.
+        β = min(4, 5) = 4.  Node H = 4.
+
+Step 2: Backtrack to D (MAX node). α = max(-∞, 4) = 4.
+        Proceed to I. Pass α=4, β=+∞ down.
+
+Step 3: At I (MIN node). β = min(+∞, 3) = 3.
+        Now check: α=4 ≥ β=3 → PRUNE! Don't explore I's second child.
+        I = 3.
+
+Step 4: Back at D: α = max(4, 3) = 4.  D = 4.
+Step 5: Back at B: β = min(+∞, 4) = 4.  B provisionally = 4.
+        (Continue to E branch... see that E=9 but min(4,9)=4, so B=4 confirmed)
+
+Step 6: Back at A: α = max(-∞, 4) = 4.  Explore C branch with α=4, β=+∞...
+
+PRUNING SAVED US: We didn't need to evaluate I's second child!
+Same result as full minimax, fewer nodes explored.</div>
+
+    <div class="callout teal">
+      Alpha-Beta returns IDENTICAL results to Minimax — it just skips provably irrelevant branches. Best case: it can reduce nodes from O(b^d) to O(b^(d/2)), effectively doubling the searchable depth!
+    </div>
+
+    <h3>Key Rules to Remember</h3>
+    <div class="card teal">
+      <strong>Pass α and β down the tree</strong>
+      Every recursive call inherits the current α and β values from its parent. α can only increase (set by MAX nodes). β can only decrease (set by MIN nodes). When α ≥ β at any node → prune that branch.
+    </div>
+
+    <div class="card">
+      <strong>α inherited from below</strong>
+      When backtracking up, a MAX node's α is set to the max of its children. A MIN node's β is set to the min of its children. These values propagate upward.
+    </div>
+
+    <h3>Comparison: Minimax vs Alpha-Beta</h3>
+    <div class="grid2">
+      <div class="card">
+        <strong>Minimax</strong>
+        <ul>
+          <li>Explores EVERY node to cutoff depth</li>
+          <li>Simple to implement</li>
+          <li>Correct but slow</li>
+          <li>O(b^d) nodes</li>
+        </ul>
+      </div>
+      <div class="card teal">
+        <strong>Alpha-Beta</strong>
+        <ul>
+          <li>Skips irrelevant branches</li>
+          <li>Slightly more complex</li>
+          <li>Same result, much faster</li>
+          <li>Best case O(b^(d/2))</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="nav-hint">COS314 Study Pack · Topics 07–08 of 10 · Minimax & Alpha-Beta</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>COS314 | Genetic Algorithms</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  :root { --accent: #30a870; --accent2: #a02870; --accent3: #b08030; }
+  .hero::before { content: '10'; }
+</style>
+</head>
+<body>
+<div class="hero">
+  <div class="tag">COS314 · Topic 10</div>
+  <h1>Genetic Algorithms</h1>
+  <p class="subtitle">Evolution-inspired population-based search</p>
+</div>
+
+<div class="content">
+
+  <div class="section">
+    <h2>What is a Genetic Algorithm?</h2>
+
+    <p>Genetic Algorithms (GAs) are inspired by Darwin's theory of evolution. A <strong>population of candidate solutions</strong> evolves over generations through selection, crossover, and mutation — with fitter solutions more likely to survive and reproduce.</p>
+
+    <div class="card">
+      <strong>Key Difference from Previous Methods</strong>
+      All previous methods (DFS, BFS, SA, Tabu, etc.) are SINGLE-POINT searches — they work with one solution at a time. GAs are MULTI-POINT searches — they maintain an entire POPULATION of solutions simultaneously.
+    </div>
+
+    <p>The GA is classified as a <strong>metaheuristic</strong> and <strong>evolutionary algorithm (EA)</strong>. It's particularly powerful for large, complex search spaces where exact methods are infeasible.</p>
+  </div>
+
+  <div class="section">
+    <h2>The GA Pipeline</h2>
+
+    <div class="pipeline">
+      <div class="pipe-step"><div class="pipe-box"><div class="num">Step 1</div><div class="name">Initial Population Generation</div><div class="desc">Create N random individuals (candidate solutions). Each individual = a chromosome encoding a solution.</div></div></div>
+      <div class="pipe-arrow">↓</div>
+      <div class="pipe-step"><div class="pipe-box"><div class="num">Step 2</div><div class="name">Fitness Evaluation</div><div class="desc">Apply fitness function to each individual. Measures how well it solves the problem.</div></div></div>
+      <div class="pipe-arrow">↓</div>
+      <div class="pipe-step"><div class="pipe-box"><div class="num">Step 3</div><div class="name">Check Termination</div><div class="desc">Max generations reached? Near-optimal solution found? If yes → return best. If no → continue.</div></div></div>
+      <div class="pipe-arrow">↓</div>
+      <div class="pipe-step"><div class="pipe-box"><div class="num">Step 4</div><div class="name">Selection</div><div class="desc">Select individuals to reproduce. Biased toward fitter individuals (tournament selection, fitness-proportionate).</div></div></div>
+      <div class="pipe-arrow">↓</div>
+      <div class="pipe-step"><div class="pipe-box"><div class="num">Step 5</div><div class="name">Crossover (Recombination)</div><div class="desc">Selected parents exchange genetic material to produce offspring. Primary operator. High application rate.</div></div></div>
+      <div class="pipe-arrow">↓</div>
+      <div class="pipe-step"><div class="pipe-box"><div class="num">Step 6</div><div class="name">Mutation</div><div class="desc">Small random changes to offspring chromosomes. Provides diversity. Low application rate (pm &lt; pc).</div></div></div>
+      <div class="pipe-arrow">↓</div>
+      <div class="pipe-step"><div class="pipe-box"><div class="num">Step 7</div><div class="name">Population Update</div><div class="desc">Replace old population with new offspring. Go back to Step 2.</div></div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Step 1: Encoding (Chromosome Representation)</h2>
+
+    <p>Each individual in the population represents a candidate solution, encoded as a <strong>chromosome</strong>. Each element of the chromosome is called a <strong>gene</strong>.</p>
+
+    <h3>Binary Encoding (most common)</h3>
+    <div class="chromosome">
+      <div class="gene g1">1</div><div class="gene g0">0</div><div class="gene g1">1</div><div class="gene g0">0</div><div class="gene g1">1</div><div class="gene g0">0</div><div class="gene g0">0</div><div class="gene g1">1</div>
+    </div>
+    <p>Each gene is 0 or 1. Simple and clean for many problems.</p>
+
+    <h3>Real Number Encoding</h3>
+    <div class="chromosome">
+      <div class="gene gx">3.6</div><div class="gene gx">6.1</div><div class="gene gx">0</div><div class="gene gx">4.9</div><div class="gene gx">10.8</div>
+    </div>
+
+    <h3>Character Encoding</h3>
+    <div class="chromosome">
+      <div class="gene g0">A</div><div class="gene g0">C</div><div class="gene g0">A</div><div class="gene g0">T</div><div class="gene g0">G</div><div class="gene g0">T</div><div class="gene g0">G</div><div class="gene g0">G</div>
+    </div>
+
+    <div class="callout">
+      The encoding must be decided BEFORE running the GA. For the Travelling Salesman Problem (TSP), each gene can represent a city — the chromosome encodes the tour order.
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Step 2: Fitness Evaluation</h2>
+
+    <p>The <strong>fitness function</strong> measures how good a solution is. It's problem-specific and predefined before the run.</p>
+
+    <div class="grid2">
+      <div class="card">
+        <strong>What makes a good fitness function?</strong>
+        <ul>
+          <li>Accurately reflects solution quality</li>
+          <li>Computationally efficient</li>
+          <li>Differentiates between good and bad solutions</li>
+          <li>Guides evolution toward the global optimum</li>
+        </ul>
+      </div>
+      <div class="card pink">
+        <strong>Examples</strong>
+        TSP: total tour length (minimize)<br>
+        Knapsack: total value within weight limit (maximize)<br>
+        8-queens: number of non-attacking queen pairs (maximize)
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Step 4: Selection</h2>
+
+    <p>Selection is biased toward fitter individuals — but all individuals have some chance of selection to maintain diversity.</p>
+
+    <div class="card">
+      <strong>Tournament Selection</strong>
+      Pick t random individuals from the population. The one with the best fitness wins the tournament and is selected as a parent. Repeat to get the second parent.
+    </div>
+
+    <div class="card pink">
+      <strong>Fitness-Proportionate (Roulette Wheel) Selection</strong>
+      Each individual's chance of selection is proportional to its fitness. Fitter individuals get a larger "slice" of the roulette wheel.
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Step 5: Crossover (Primary Operator)</h2>
+
+    <p>Two parents exchange portions of their chromosomes to create offspring. Crossover is the <strong>primary</strong> operator — it's applied at a high rate (pc typically 0.6–0.9).</p>
+
+    <h3>Single-Point Crossover</h3>
+    <div class="ascii">Parent 1: │ 8 │ 0 │ 6 │ 2 │ 1 │ 0 │ 0 │ 1 │
+                               ↑ crossover point (after position 4)
+Parent 2: │ 3 │ 6 │ 1 │ 0 │ 4 │ 9 │10 │ 8 │
+
+Offspring 1: │ 8 │ 0 │ 6 │ 2 │ 4 │ 9 │10 │ 8 │  ← parent1[1:4] + parent2[5:8]
+Offspring 2: │ 3 │ 6 │ 1 │ 0 │ 1 │ 0 │ 0 │ 1 │  ← parent2[1:4] + parent1[5:8]</div>
+
+    <p>A random number r ∈ [0,1] is generated. If r &lt; pc, crossover occurs. Otherwise, parents are copied unchanged.</p>
+
+    <div class="callout">
+      Crossover is the PRIMARY operator for GAs. It explores the search space by combining good building blocks from two parents. The crossover probability pc is set HIGH (typically 0.6–0.9) because crossover drives convergence.
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Step 6: Mutation (Secondary Operator)</h2>
+
+    <p>Mutation makes small random changes to a chromosome. It's the <strong>secondary</strong> operator — applied at a LOW rate (pm typically 0.001–0.01).</p>
+
+    <div class="card yellow">
+      <strong>Why is pm kept low?</strong>
+      If pm is too high, the search becomes purely random — destroying good solutions that were built by crossover. Mutation is for fine-tuning and maintaining diversity, not driving the main search.
+    </div>
+
+    <h3>Flip Bit Mutation (for binary encoding)</h3>
+    <div class="ascii">Parent:    │ 1 │ 0 │ 1 │ 0 │ 0 │ 0 │ 0 │ 1 │
+                              ↑       ↑  ← two bits flipped
+Offspring: │ 1 │ 0 │ 0 │ 0 │ 1 │ 0 │ 0 │ 1 │</div>
+
+    <p>Mutation <strong>prevents premature convergence</strong> to a local optimum by introducing new genetic material not present in the current population.</p>
+  </div>
+
+  <div class="section">
+    <h2>Step 7: Population Replacement</h2>
+
+    <div class="grid2">
+      <div class="card">
+        <strong>Generational Replacement</strong>
+        The ENTIRE old population is replaced by new offspring each generation. Clean break between generations.
+      </div>
+      <div class="card pink">
+        <strong>Steady-State Replacement</strong>
+        Only n individuals are replaced each generation. Rest of population stays. Allows faster evolution without waiting for full generation.
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Termination</h2>
+
+    <ul>
+      <li>Maximum number of generations reached</li>
+      <li>Near-optimal solution quality achieved</li>
+      <li>No significant improvement over recent generations</li>
+    </ul>
+
+    <div class="card red">
+      <strong>GAs have NO guarantee of optimality</strong>
+      GAs are stochastic — they may not converge, or may converge to a local rather than global optimum. The complete execution (initialisation → specified generations → output) is called a RUN.
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Summary Cheat Sheet</h2>
+    <table>
+      <tr><th>Component</th><th>Description</th><th>Key parameter</th></tr>
+      <tr><td>Chromosome</td><td>Encoding of a candidate solution</td><td>Encoding type (binary, real, char)</td></tr>
+      <tr><td>Gene</td><td>One element of the chromosome</td><td>Value range per gene</td></tr>
+      <tr><td>Population</td><td>Collection of chromosomes</td><td>Population size N</td></tr>
+      <tr><td>Fitness function</td><td>Evaluates solution quality</td><td>Problem-specific</td></tr>
+      <tr><td>Selection</td><td>Chooses parents for reproduction</td><td>Tournament size t</td></tr>
+      <tr><td>Crossover</td><td>Combines two parents → offspring</td><td>Crossover rate pc (high: 0.6–0.9)</td></tr>
+      <tr><td>Mutation</td><td>Random change to an offspring</td><td>Mutation rate pm (low: 0.001–0.01)</td></tr>
+      <tr><td>Replacement</td><td>Updates population</td><td>Generational vs steady-state</td></tr>
+    </table>
+
+    <div class="callout">
+      GAs are MULTIPOINT searches (population-based). All previous algorithms (DFS, BFS, SA, Tabu, Hill Climbing) are SINGLE-POINT. This is the fundamental architectural difference. GAs explore many areas simultaneously.
+    </div>
+  </div>
+
+  <div class="nav-hint">COS314 Study Pack · Topic 10 of 10 · Genetic Algorithms</div>
+</div>
+</body>
+</html>

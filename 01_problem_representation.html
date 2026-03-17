@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>COS314 | Problem Representation</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  :root { --accent: #b8903c; --accent2: #4a90a8; --accent3: #a03868; }
+  .hero::before { content: '01'; }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="tag">COS314 · Topic 01</div>
+  <h1>Problem Representation<br>Trees &amp; Graphs</h1>
+  <p class="subtitle">How AI problems are modelled as state spaces</p>
+</div>
+
+<div class="content">
+
+  <div class="section">
+    <h2>What is a State Space?</h2>
+    <p>Before any AI search can happen, the problem must be <strong>represented as a state space</strong>. A state space is a formal model of all possible situations (states) in a problem, connected by legal moves.</p>
+
+    <div class="card">
+      <strong>State Space = 4 things</strong>
+      A set of <em>nodes</em> (each representing a state of the problem) + <em>arcs</em> between nodes (legal transitions) + an <em>initial state</em> (where we start) + a <em>goal state</em> (what we want to reach).
+    </div>
+
+    <p>The state space manifests either as a <strong>tree</strong> or a <strong>graph</strong> depending on the problem. Search algorithms are then applied to this structure to find a path from initial → goal.</p>
+  </div>
+
+  <div class="section">
+    <h2>Graph vs Tree Representation</h2>
+
+    <div class="comparison">
+      <div class="comparison-col">
+        <h4>Graph</h4>
+        <ul>
+          <li>States CAN be revisited</li>
+          <li>More than one path between nodes</li>
+          <li>Moves can be undone (bidirectional)</li>
+          <li>Multiple paths to a goal exist</li>
+          <li>Must handle loops &amp; cycles</li>
+          <li>Better for problems like Towers of Hanoi</li>
+        </ul>
+      </div>
+      <div class="comparison-col">
+        <h4>Tree</h4>
+        <ul>
+          <li>No revisiting of states</li>
+          <li>Exactly one path between nodes</li>
+          <li>Goal state may appear more than once</li>
+          <li>More memory efficient for some problems</li>
+          <li>No loop detection needed</li>
+          <li>Better for problems like 8-Puzzle</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="ascii-diagram">          x+(y+z)
+          /       \
+      (x+y)+z     (y+z)+x       ← GRAPH: two paths to same node
+        /               \
+   z+(x+y)           y+(z+x)   ← GOAL appears once
+
+─────────────────────────────────────────
+
+          x+(y+z)
+          /       \
+      (x+y)+z     (y+z)+x       ← TREE: goal may appear multiple
+        /  \           \            times as separate leaf nodes
+   z+(x+y) ...      y+(z+x)    ← GOAL repeated</div>
+
+    <div class="callout">
+      In a TREE, the same goal state may appear more than once since there's only one path per node. In a GRAPH, there's only one instance of each state but multiple paths to reach it.
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Classic Problems &amp; Their Representations</h2>
+
+    <h3>8-Puzzle Problem</h3>
+    <p>A 3×3 grid with 8 tiles and 1 blank space. The goal is to slide tiles into a target configuration.</p>
+
+    <div class="card blue">
+      <strong>Key representation decisions</strong>
+      Legal moves are defined as <em>moving the blank space</em> (up/down/left/right), NOT moving the tiles. This keeps the operator count minimal (4 operators) which reduces the branching factor. Fewer operators = smaller state space.
+    </div>
+
+    <div class="ascii-diagram">Initial State:        Goal State:
+┌───┬───┬───┐        ┌───┬───┬───┐
+│ 1 │ 2 │ 3 │        │ 1 │ 2 │ 3 │
+├───┼───┼───┤        ├───┼───┼───┤
+│ 8 │███│ 4 │   →    │ 8 │   │ 4 │
+├───┼───┼───┤        ├───┼───┼───┤
+│ 7 │ 6 │ 5 │        │ 7 │ 6 │ 5 │
+└───┴───┴───┘        └───┴───┴───┘
+Blank moves: UP, DOWN, LEFT, RIGHT</div>
+
+    <h3>Towers of Hanoi</h3>
+    <p>Move N rings from peg 1 to peg 3. Only one ring at a time, never a larger ring on a smaller one.</p>
+
+    <div class="card">
+      <strong>State representation</strong>
+      Each state = the configuration of all rings on all 3 pegs. Legal moves = moving the top ring from any peg to another, provided no ring violation occurs. Best represented as a GRAPH since moves can be undone.
+    </div>
+
+    <h3>Travelling Salesman Problem (TSP)</h3>
+    <p>Find the shortest route visiting each city exactly once and returning to start.</p>
+    <div class="card red">
+      <strong>Why it's hard</strong>
+      With N cities, there are (N-1)!/2 possible routes. This grows factorially — even 20 cities = ~60 trillion routes. This is why heuristic and metaheuristic methods are needed.
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>What to Define When Building a State Space</h2>
+
+    <div class="grid2">
+      <div class="card">
+        <strong>Goal</strong>
+        What does the goal state look like? Is it a specific configuration or any state satisfying certain conditions?
+      </div>
+      <div class="card blue">
+        <strong>Legal Moves / Operators</strong>
+        What transitions are allowed? Keep operators minimal — more operators = bigger branching factor = harder search.
+      </div>
+      <div class="card blue">
+        <strong>State Description</strong>
+        What knowledge must be encoded in each state? Enough to determine all legal next moves.
+      </div>
+      <div class="card red">
+        <strong>Best vs Good Enough</strong>
+        Some problems (TSP) need the optimal solution. Others (theorem proving) just need any valid solution.
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Problem Classification</h2>
+    <ul>
+      <li><span class="badge badge-b">TYPE 1</span> Problems needing only a representation (e.g. crossword puzzles)</li>
+      <li><span class="badge badge-y">TYPE 2</span> Problems needing a yes/no answer — does a solution exist?</li>
+      <li><span class="badge badge-r">TYPE 3</span> Problems needing the solution PATH — goal is known, find how to get there (Towers of Hanoi, theorems)</li>
+    </ul>
+
+    <div class="callout">
+      The ENTIRE tree/graph is NOT pre-generated. Nodes are expanded on-the-fly during search. This is why we need algorithms — the space is too large to store all at once.
+    </div>
+  </div>
+
+  <div class="nav-hint">COS314 Study Pack · Topic 01 of 10 · Problem Representation</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>COS314 | Hill Climbing & A*</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  :root { --accent: #7aa030; --accent2: #4a90a8; --accent3: #b87038; }
+  .hero::before { content: '06'; }
+</style>
+</head>
+<body>
+<div class="hero">
+  <div class="tag">COS314 · Topic 06</div>
+  <h1>Hill Climbing<br>&amp; A* Algorithm</h1>
+  <p class="subtitle">Informed search: using heuristics to find better paths</p>
+</div>
+
+<div class="content">
+
+  <!-- ======================== HILL CLIMBING ======================== -->
+  <div class="section">
+    <h2>Hill Climbing</h2>
+
+    <p>Hill climbing is similar to Best-First Search, but <strong>only considers local states</strong>. Instead of keeping the entire OPEN list sorted globally, it only looks at the children of the current node and picks the best one.</p>
+
+    <div class="card">
+      <strong>Key distinction from Best-First</strong>
+      Best-First: maintains a global OPEN list sorted by heuristic — picks the best node from ALL explored-but-not-expanded nodes.<br>
+      Hill-Climbing: only reorders the CHILDREN of the current node, places them at the front of OPEN — local focus only.
+    </div>
+
+    <div class="code">def hill_climbing(in Start, out State)
+  open  = [Start]
+  close = []
+  State = failure
+
+  while (open ≠ []) AND (State ≠ success)
+    X ← remove LEFTMOST node from open
+
+    if X == goal
+      State = success
+    else
+      children ← generate children of X
+      for each child:
+        if not on open or closed: assign heuristic value
+        if on open with shorter path: update
+        if on closed with shorter path: move back to open
+
+      put X on closed
+      reorder CHILDREN by heuristic (best first, leftmost)
+      place reordered children on LEFT of open    // ← LOCAL focus</div>
+
+    <h3>The Local Optima Problem</h3>
+    <p>Hill climbing's biggest weakness: it can get stuck at a <strong>local maximum</strong> — a state that's better than all its neighbours, but not the globally best solution.</p>
+
+    <div class="landscape">                    GLOBAL OPTIMUM
+         local                   ╭──╮
+         max  ╭─╮               ╭╯  ╰─╮
+        ╭──╮  │ │  plateau     ╭╯      ╰╮
+       ╭╯  ╰──╯ ╰────────────╮╯         ╰╮
+      ╭╯                     ╰╮           ╰─
+     ╭╯                       ╰╮
+──────╯                         ╰────────────
+
+      ↑ stuck here              ↑ should be here</div>
+
+    <div class="card orange">
+      <strong>Three Problems with Hill Climbing</strong>
+      1. <strong>Local Optima</strong>: Gets stuck in a peak that's not the global best<br>
+      2. <strong>Plateau</strong>: Flat area where all neighbours have same value — no direction<br>
+      3. <strong>Ridge</strong>: Series of local optima that mislead the algorithm
+    </div>
+
+    <h3>Greedy Hill Climbing</h3>
+    <p>A variant that <strong>always picks the immediate best neighbour</strong> without backtracking. Steps:</p>
+    <ul>
+      <li>Evaluate the initial state</li>
+      <li>Select a new operator (move)</li>
+      <li>Evaluate the new state</li>
+      <li>If it's closer to goal → make it current state</li>
+      <li>If not better → ignore it</li>
+      <li>If at goal or no operators left → quit</li>
+      <li>Otherwise repeat from step 2</li>
+    </ul>
+
+    <div class="callout">
+      Greedy hill climbing WITHOUT backtracking can miss the goal entirely if there's a local max in the way. WITH backtracking, it keeps a list of promising nodes to revisit. This avoids getting permanently stuck.
+    </div>
+  </div>
+
+  <hr class="sep">
+
+  <!-- ======================== A ALGORITHM ======================== -->
+  <div class="section">
+    <h2 class="blue">The A Algorithm</h2>
+
+    <p>The A algorithm is Best-First Search using a specific evaluation function that combines both the cost to reach the current node AND the estimated cost to the goal.</p>
+
+    <div class="formula-box">
+      <div class="formula">f(n) = g(n) + h(n)</div>
+      <div class="formula-desc">
+        g(n) = actual cost from start to node n (path length so far)<br>
+        h(n) = heuristic estimate from n to the goal
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="card blue">
+        <strong>g(n)</strong>
+        The actual, known cost of getting from the START node to node n. Usually the depth in the tree, or sum of arc costs. Tells us how expensive the path so far is.
+      </div>
+      <div class="card blue">
+        <strong>h(n)</strong>
+        The heuristic estimate of cost from n to the GOAL. Uses domain knowledge. For 8-puzzle: number of tiles out of place.
+      </div>
+    </div>
+  </div>
+
+  <hr class="sep">
+
+  <!-- ======================== A* ALGORITHM ======================== -->
+  <div class="section">
+    <h2 class="blue">The A* Algorithm</h2>
+
+    <p>A* is the A algorithm where the heuristic h(n) is <strong>admissible</strong>: it never overestimates the actual cost. This guarantees finding the optimal (shortest) path.</p>
+
+    <div class="formula-box">
+      <div class="formula">f*(n) = g*(n) + h*(n)</div>
+      <div class="formula-desc">
+        g*(n) = true shortest cost from start to n<br>
+        h*(n) = true cost from n to goal (unknown in practice)<br><br>
+        We estimate: g(n) ≤ g*(n) and h(n) ≤ h*(n)
+      </div>
+    </div>
+
+    <div class="card blue">
+      <strong>When is the A algorithm called A*?</strong>
+      When h(n) ≤ h*(n) for ALL nodes — i.e., the heuristic is ADMISSIBLE (never overestimates). This single condition is what makes A* guaranteed to find the optimal solution.
+    </div>
+
+    <h3>A* on the 8-Puzzle — worked example</h3>
+    <div class="ascii">Using h(n) = tiles out of place, g(n) = depth in search tree
+
+State a (initial):    f(a) = g(0) + h(5) = 0 + 5 = 5
+┌───┬───┬───┐
+│ 2 │ 8 │ 3 │  ← g=0 (at start)
+│ 1 │ 6 │ 4 │  ← h=5 (tiles 2,8,1,6,blank not in place? Actually count misplaced)
+│ 7 │   │ 5 │
+└───┴───┴───┘
+
+State b (1 move):     f(b) = g(1) + h(5) = 1 + 5 = 6
+State c (1 move):     f(c) = g(1) + h(3) = 1 + 3 = 4  ← BEST, expand this next
+State d (1 move):     f(d) = g(1) + h(5) = 1 + 5 = 6
+
+A* always expands the node with LOWEST f(n) value from OPEN list</div>
+
+    <h3>Admissibility of 8-Puzzle Heuristics</h3>
+    <p>Both "tiles out of place" and "Manhattan distance" are admissible for the 8-puzzle because they count moves assuming tiles can pass through each other — a relaxed problem that always gives a lower bound.</p>
+
+    <div class="callout blue">
+      h(n) = tiles out of place is admissible because each misplaced tile needs AT LEAST 1 move to reach its goal — we never overestimate. Manhattan distance is even better (more informed) but also admissible.
+    </div>
+
+    <h3>A* Advantages and Disadvantages</h3>
+    <table>
+      <tr><th>Advantages</th><th>Disadvantages</th></tr>
+      <tr>
+        <td>✅ <strong>Optimal</strong>: Guarantees shortest path if h is admissible</td>
+        <td>❌ <strong>Memory</strong>: Stores all explored nodes in OPEN/CLOSED</td>
+      </tr>
+      <tr>
+        <td>✅ <strong>Complete</strong>: Will find a solution if one exists</td>
+        <td>❌ <strong>Heuristic dependent</strong>: Bad h(n) → bad performance</td>
+      </tr>
+      <tr>
+        <td>✅ <strong>Efficient</strong>: Explores most promising paths first</td>
+        <td>❌ <strong>Complex</strong>: Careful data structure management needed</td>
+      </tr>
+      <tr>
+        <td>✅ <strong>Widely applicable</strong>: Navigation, game AI, robotics, networking</td>
+        <td>❌ If h overestimates: may find suboptimal path</td>
+      </tr>
+    </table>
+  </div>
+
+  <hr class="sep">
+
+  <!-- ======================== COMPARISON ======================== -->
+  <div class="section">
+    <h2>Search Algorithm Comparison</h2>
+    <table>
+      <tr><th>Algorithm</th><th>Uses heuristic?</th><th>Optimal?</th><th>Complete?</th><th>Key difference</th></tr>
+      <tr><td>DFS</td><td>No</td><td>❌</td><td>❌</td><td>Go deep first</td></tr>
+      <tr><td>BFS</td><td>No</td><td>✅</td><td>✅</td><td>Go wide first</td></tr>
+      <tr><td>Best-First</td><td>Yes (h only)</td><td>❌</td><td>Yes</td><td>Global h ordering</td></tr>
+      <tr><td>Hill Climbing</td><td>Yes (h only)</td><td>❌</td><td>❌</td><td>Local h ordering</td></tr>
+      <tr><td>A (algorithm)</td><td>Yes (g+h)</td><td>❌</td><td>Yes</td><td>f=g+h, h may overestimate</td></tr>
+      <tr><td><strong>A*</strong></td><td>Yes (g+h)</td><td>✅</td><td>✅</td><td>f=g+h, h ADMISSIBLE</td></tr>
+    </table>
+
+    <div class="callout">
+      The key formula to memorise: f(n) = g(n) + h(n). When h is admissible (never overestimates), the A algorithm becomes A*. A* is the gold standard for single-agent pathfinding.
+    </div>
+  </div>
+
+  <div class="nav-hint">COS314 Study Pack · Topic 06 of 10 · Hill Climbing & A*</div>
+</div>
+</body>
+</html>
