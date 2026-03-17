@@ -8,6 +8,7 @@
 <style>
   :root { --accent: #a83880; --accent2: #38a888; --accent3: #b87038; }
   .hero::before { content: '07'; }
+  .demo-frame { width: 100%; border: 1px solid var(--border); border-radius: 6px; display: block; margin: 16px 0; overflow: hidden; }
 </style>
 </head>
 <body>
@@ -183,6 +184,10 @@ Same result as full minimax, fewer nodes explored.</div>
       When backtracking up, a MAX node's α is set to the max of its children. A MIN node's β is set to the min of its children. These values propagate upward.
     </div>
 
+    <h3>Interactive Demo: Alpha-Beta Pruning</h3>
+    <p>Step through a 4-level MIN-root tree with Alpha-Beta pruning applied. Pruned branches are highlighted so you can see exactly where and why cuts occur.</p>
+    <iframe class="demo-frame" src="demos/four_level_min_root_with_prune.html" title="Alpha-Beta Pruning Demo" style="height:520px"></iframe>
+
     <h3>Comparison: Minimax vs Alpha-Beta</h3>
     <div class="grid2">
       <div class="card">
@@ -208,5 +213,12 @@ Same result as full minimax, fewer nodes explored.</div>
 
   <div class="nav-hint">COS314 Study Pack · Topics 07–08 of 10 · Minimax & Alpha-Beta</div>
 </div>
+<script>
+document.querySelectorAll('iframe.demo-frame').forEach(f => {
+  f.addEventListener('load', function() {
+    try { this.style.height = this.contentDocument.documentElement.scrollHeight + 'px'; } catch(e) {}
+  });
+});
+</script>
 </body>
 </html>

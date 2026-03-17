@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 14px; line-height: 1.6;
+  background: #1c1c28; color: #c4c4d8; padding: 16px; }
+:root {
+  --color-border-secondary:     #34344e;
+  --color-border-tertiary:      #2a2a40;
+  --color-background-secondary: #252534;
+  --color-background-primary:   #1c1c28;
+  --color-text-primary:         #c4c4d8;
+  --color-text-secondary:       #787896;
+  --color-text-tertiary:        #505068;
+  --border-radius-md:           6px;
+  --border-radius-lg:           8px;
+  --font-sans: 'Segoe UI', Arial, sans-serif;
+}
+</style>
+</head>
+<body>
+
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--font-sans,sans-serif);background:transparent}
+  .wrap{padding:.75rem 0}
+  .controls{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+  button{font-size:13px;padding:5px 13px;border-radius:6px;border:.5px solid var(--color-border-secondary,#ccc);background:transparent;color:var(--color-text-primary,#111);cursor:pointer;transition:background .15s}
+  button:hover{background:var(--color-background-secondary,#f5f5f5)}
+  button:disabled{opacity:.4;cursor:default}
+  .status{font-size:12px;color:var(--color-text-secondary,#666);flex:1;min-width:160px}
+  .bottom{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;align-items:start}
+  table{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed}
+  th{font-size:11px;font-weight:500;color:var(--color-text-secondary);text-align:left;padding:5px 8px;border-bottom:.5px solid var(--color-border-tertiary);white-space:nowrap}
+  td{padding:5px 8px;border-bottom:.5px solid var(--color-border-tertiary);color:var(--color-text-primary);font-variant-numeric:tabular-nums;white-space:nowrap}
+  tr.row-current td{background:#FCEBEB;color:#791F1F}
+  tr.row-open td{background:#FAEEDA;color:#633806}
+  tr.row-closed td{background:#EAF3DE;color:#27500A}
+  tr.row-path td{background:#EEEDFE;color:#3C3489;font-weight:500}
+  .legend{display:flex;gap:10px;flex-wrap:wrap;font-size:11px;color:var(--color-text-secondary);margin-top:8px}
+  .dot{width:12px;height:12px;border-radius:2px;display:inline-block;vertical-align:middle;margin-right:3px}
+  .tbl-wrap{background:var(--color-background-primary);border:.5px solid var(--color-border-tertiary);border-radius:8px;overflow:hidden}
+  .tbl-title{font-size:11px;font-weight:500;color:var(--color-text-secondary);padding:6px 8px;border-bottom:.5px solid var(--color-border-tertiary)}
+  @media(max-width:500px){.bottom{grid-template-columns:1fr}}
+</style>
+<div class="wrap">
+  <div class="controls">
+    <button id="btn-step" onclick="step()">Step →</button>
+    <button id="btn-auto" onclick="autoPlay()">Auto play</button>
+    <button onclick="reset()">Reset</button>
+    <span class="status" id="status-text">Press Step to begin A* search</span>
+  </div>
+
+  <svg id="tree-svg" width="100%" viewBox="0 0 680 330" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </marker>
+    </defs>
+    <g id="edges"></g>
+    <g id="nodes"></g>
+  </svg>
+
+  <div class="bottom">
+    <div class="tbl-wrap">
+      <div class="tbl-title">All nodes</div>
+      <table id="all-table">
+        <thead><tr><th>Node</th><th>g(n)</th><th>h(n)</th><th>f(n)</th><th>Status</th></tr></thead>
+        <tbody id="all-tbody"></tbody>
+      </table>
+    </div>
+    <div class="tbl-wrap">
+      <div class="tbl-title">Open list (sorted by f)</div>
+      <table id="open-table">
+        <thead><tr><th>Node</th><th>g(n)</th><th>h(n)</th><th>f(n)</th></tr></thead>
+        <tbody id="open-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span><span class="dot" style="background:#E6F1FB;border:1px solid #185FA5"></span>Unvisited</span>
+    <span><span class="dot" style="background:#FAEEDA;border:1px solid #854F0B"></span>Open list</span>
+    <span><span class="dot" style="background:#EAF3DE;border:1px solid #3B6D11"></span>Closed</span>
+    <span><span class="dot" style="background:#FCEBEB;border:1px solid #A32D2D"></span>Expanding</span>
+    <span><span class="dot" style="background:#EEEDFE;border:1px solid #534AB7"></span>Final path</span>
+  </div>
+</div>
+
+<script>
+const TREE = {
+  A:{g:0,h:6,x:340,y:44,children:['B','C']},
+  B:{g:2,h:4,x:185,y:130,children:['D','E']},
+  C:{g:4,h:3,x:495,y:130,children:['F','G']},
+  D:{g:5,h:5,x:90, y:220,children:['H']},
+  E:{g:4,h:2,x:280,y:220,children:['I','J']},
+  F:{g:8,h:4,x:400,y:220,children:[]},
+  G:{g:6,h:0,x:590,y:220,children:[]},
+  H:{g:9,h:6,x:90, y:308,children:[]},
+  I:{g:7,h:3,x:240,y:308,children:[]},
+  J:{g:6,h:1,x:340,y:308,children:[]},
+};
+const PARENTS={B:'A',C:'A',D:'B',E:'B',F:'C',G:'C',H:'D',I:'E',J:'E'};
+const GOAL='G';
+const R=22;
+
+let openList=[],closedSet=new Set(),currentNode=null,finalPath=[],done=false,autoTimer=null;
+const f=id=>TREE[id].g+TREE[id].h;
+
+function reset(){
+  clearInterval(autoTimer);autoTimer=null;
+  openList=[{id:'A'}];closedSet=new Set();currentNode=null;finalPath=[];done=false;
+  document.getElementById('btn-step').disabled=false;
+  document.getElementById('btn-auto').textContent='Auto play';
+  setStatus('Press Step to begin A* search toward goal G★');
+  render();
+}
+
+function step(){
+  if(done)return;
+  if(!openList.length){setStatus('Open list empty — no path.');done=true;return;}
+  openList.sort((a,b)=>f(a.id)-f(b.id));
+  const {id}=openList.shift();
+  closedSet.add(id);currentNode=id;
+  if(id===GOAL){
+    let n=id;while(n){finalPath.unshift(n);n=PARENTS[n];}
+    done=true;clearInterval(autoTimer);autoTimer=null;
+    document.getElementById('btn-step').disabled=true;
+    document.getElementById('btn-auto').textContent='Auto play';
+    setStatus(`Goal reached! Path: ${finalPath.join(' → ')}  |  Total cost = ${TREE[GOAL].g}`);
+    render();return;
+  }
+  for(const c of TREE[id].children){
+    if(!closedSet.has(c)&&!openList.find(o=>o.id===c))openList.push({id:c});
+  }
+  const preview=openList.slice().sort((a,b)=>f(a.id)-f(b.id)).map(o=>`${o.id}(f=${f(o.id)})`).join(', ');
+  setStatus(`Expanding ${id}: f(${id}) = g(${TREE[id].g}) + h(${TREE[id].h}) = ${f(id)}  |  Open: [${preview||'—'}]`);
+  render();
+}
+
+function autoPlay(){
+  if(autoTimer){clearInterval(autoTimer);autoTimer=null;document.getElementById('btn-auto').textContent='Auto play';return;}
+  document.getElementById('btn-auto').textContent='Pause';
+  autoTimer=setInterval(()=>{if(done){clearInterval(autoTimer);autoTimer=null;document.getElementById('btn-auto').textContent='Auto play';return;}step();},1100);
+}
+
+function setStatus(txt){document.getElementById('status-text').textContent=txt;}
+
+function nodeColor(id){
+  if(finalPath.includes(id))  return{fill:'#EEEDFE',stroke:'#534AB7',text:'#3C3489'};
+  if(id===currentNode)        return{fill:'#FCEBEB',stroke:'#A32D2D',text:'#791F1F'};
+  if(closedSet.has(id))       return{fill:'#EAF3DE',stroke:'#3B6D11',text:'#27500A'};
+  if(openList.find(o=>o.id===id)) return{fill:'#FAEEDA',stroke:'#854F0B',text:'#633806'};
+  return{fill:'#E6F1FB',stroke:'#185FA5',text:'#0C447C'};
+}
+
+function nodeStatus(id){
+  if(finalPath.includes(id))   return'path';
+  if(id===currentNode)         return'expanding';
+  if(closedSet.has(id))        return'closed';
+  if(openList.find(o=>o.id===id)) return'open';
+  return'—';
+}
+
+function render(){
+  const svg=document.getElementById('tree-svg');
+  let edgeHtml='';
+  for(const[id,node]of Object.entries(TREE)){
+    for(const child of node.children){
+      const c=TREE[child];
+      const dx=c.x-node.x,dy=c.y-node.y,len=Math.sqrt(dx*dx+dy*dy);
+      const ux=dx/len,uy=dy/len;
+      const x1=node.x+ux*R,y1=node.y+uy*R,x2=c.x-ux*(R+2),y2=c.y-uy*(R+2);
+      const onPath=finalPath.includes(id)&&finalPath.includes(child)&&Math.abs(finalPath.indexOf(child)-finalPath.indexOf(id))===1;
+      edgeHtml+=`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${onPath?'#534AB7':'var(--color-border-secondary,#ccc)'}" stroke-width="${onPath?2.5:1}" marker-end="url(#arrow)"/>`;
+    }
+  }
+  document.getElementById('edges').innerHTML=edgeHtml;
+
+  let nodeHtml='';
+  for(const[id,node]of Object.entries(TREE)){
+    const col=nodeColor(id);
+    const isGoal=id===GOAL;
+    const sw=id===currentNode||finalPath.includes(id)?2:1;
+    nodeHtml+=`<g>
+      <circle cx="${node.x}" cy="${node.y}" r="${R}" fill="${col.fill}" stroke="${col.stroke}" stroke-width="${sw}"/>
+      <text x="${node.x}" y="${node.y-6}" text-anchor="middle" dominant-baseline="central" font-size="13" font-weight="500" fill="${col.text}" font-family="var(--font-sans,sans-serif)">${id}${isGoal?'★':''}</text>
+      <text x="${node.x}" y="${node.y+8}" text-anchor="middle" dominant-baseline="central" font-size="10" fill="${col.text}" font-family="var(--font-sans,sans-serif)">f=${f(id)}</text>
+    </g>`;
+  }
+  document.getElementById('nodes').innerHTML=nodeHtml;
+
+  const allIds=['A','B','C','D','E','F','G','H','I','J'];
+  let allRows='';
+  for(const id of allIds){
+    const n=TREE[id];
+    const st=nodeStatus(id);
+    const rowClass=st==='path'?'row-path':st==='expanding'?'row-current':st==='open'?'row-open':st==='closed'?'row-closed':'';
+    allRows+=`<tr class="${rowClass}"><td style="font-weight:500">${id}${id===GOAL?'★':''}</td><td>${n.g}</td><td>${n.h}</td><td style="font-weight:500">${f(id)}</td><td>${st}</td></tr>`;
+  }
+  document.getElementById('all-tbody').innerHTML=allRows;
+
+  const sorted=[...openList].sort((a,b)=>f(a.id)-f(b.id));
+  let openRows='';
+  if(sorted.length===0){
+    openRows=`<tr><td colspan="4" style="color:var(--color-text-secondary);text-align:center;padding:10px">—</td></tr>`;
+  } else {
+    for(const{id}of sorted){
+      const n=TREE[id];
+      openRows+=`<tr class="row-open"><td style="font-weight:500">${id}</td><td>${n.g}</td><td>${n.h}</td><td style="font-weight:500">${f(id)}</td></tr>`;
+    }
+  }
+  document.getElementById('open-tbody').innerHTML=openRows;
+}
+
+reset();
+</script>
+
+</body>
+</html>

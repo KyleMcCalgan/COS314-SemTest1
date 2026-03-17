@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 14px; line-height: 1.6;
+  background: #1c1c28; color: #c4c4d8; padding: 16px; }
+:root {
+  --color-border-secondary:     #34344e;
+  --color-border-tertiary:      #2a2a40;
+  --color-background-secondary: #252534;
+  --color-background-primary:   #1c1c28;
+  --color-text-primary:         #c4c4d8;
+  --color-text-secondary:       #787896;
+  --color-text-tertiary:        #505068;
+  --border-radius-md:           6px;
+  --border-radius-lg:           8px;
+  --font-sans: 'Segoe UI', Arial, sans-serif;
+}
+.btn {
+  padding: 6px 16px; font-size: 13px; cursor: pointer;
+  border: 1px solid var(--color-border-secondary);
+  border-radius: var(--border-radius-md);
+  background: transparent; color: var(--color-text-primary);
+}
+.btn:hover { background: var(--color-background-secondary); }
+</style>
+</head>
+<body>
+
+<style>.btn{padding:6px 16px;font-size:13px;}</style>
+
+<div style="display:flex;gap:12px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
+  <button class="btn" onclick="go(-1)">← Prev</button>
+  <button class="btn" onclick="go(1)">Next →</button>
+  <span id="ctr" style="font-size:13px;color:var(--color-text-secondary);"></span>
+  <button onclick="go(-99)" style="padding:6px 12px;font-size:12px;color:var(--color-text-secondary);">Reset</button>
+</div>
+
+<div id="ebox" style="background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:14px 16px;margin-bottom:16px;min-height:80px;">
+  <div id="etitle" style="font-size:13px;font-weight:500;color:var(--color-text-primary);margin-bottom:6px;"></div>
+  <div id="ebody" style="font-size:13px;color:var(--color-text-secondary);line-height:1.6;"></div>
+</div>
+
+<div style="display:flex;gap:16px;margin-bottom:10px;flex-wrap:wrap;">
+  <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--color-text-secondary);">
+    <div style="width:14px;height:14px;border-radius:7px;background:#185FA5;opacity:0.85;"></div> MAX
+  </div>
+  <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--color-text-secondary);">
+    <div style="width:14px;height:14px;border-radius:7px;background:#0F6E56;opacity:0.85;"></div> MIN
+  </div>
+  <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--color-text-secondary);">
+    <div style="width:14px;height:14px;border-radius:3px;background:#5F5E5A;opacity:0.7;"></div> Leaf
+  </div>
+  <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--color-text-secondary);">
+    <div style="width:14px;height:14px;border-radius:7px;background:#993C1D;opacity:0.6;"></div> Pruned
+  </div>
+</div>
+
+<svg id="svg" width="100%" viewBox="0 0 680 500" style="display:block;margin-bottom:12px;"></svg>
+<div id="srow" style="display:flex;gap:10px;flex-wrap:wrap;font-size:13px;"></div>
+
+<script>
+const N = {
+  root: { x:340, y:30,  type:'min', children:['A','B'],    r:16 },
+  A:    { x:170, y:120, type:'max', children:['A1','A2'],  r:16 },
+  B:    { x:510, y:120, type:'max', children:['B1','B2'],  r:16 },
+  A1:   { x:80,  y:220, type:'min', children:['A1a','A1b'], r:16 },
+  A2:   { x:260, y:220, type:'min', children:['A2a','A2b'], r:16 },
+  B1:   { x:420, y:220, type:'min', children:['B1a','B1b'], r:16 },
+  B2:   { x:600, y:220, type:'min', children:['B2a','B2b'], r:16 },
+  A1a:  { x:40,  y:340, type:'leaf', children:[], leaf:'4' },
+  A1b:  { x:115, y:340, type:'leaf', children:[], leaf:'7' },
+  A2a:  { x:220, y:340, type:'leaf', children:[], leaf:'3' },
+  A2b:  { x:295, y:340, type:'leaf', children:[], leaf:'9' },
+  B1a:  { x:380, y:340, type:'leaf', children:[], leaf:'8' },
+  B1b:  { x:455, y:340, type:'leaf', children:[], leaf:'2' },
+  B2a:  { x:560, y:340, type:'leaf', children:[], leaf:'6' },
+  B2b:  { x:635, y:340, type:'leaf', children:[], leaf:'5' },
+};
+
+const STEPS = [
+  {
+    title: 'Setup — same structure, new leaf values chosen to force a prune',
+    body: 'Exact same 4-level structure: root (MIN) → A,B (MAX) → A1,A2,B1,B2 (MIN) → leaves. New leaf values: A1→(4,7), A2→(3,9), B1→(8,2), B2→(6,5). The prune will fire inside B — specifically B2 will be pruned after B1 returns a value that makes B2 irrelevant.',
+    active:null, vals:{A1a:'4',A1b:'7',A2a:'3',A2b:'9',B1a:'8',B1b:'2',B2a:'6',B2b:'5'}, pruned:[], ab:{}
+  },
+  {
+    title: 'Step 1 — Root (MIN) starts. α=−∞, β=+∞. Recurse into A.',
+    body: 'Root is MIN. α=−∞, β=+∞. Recurse left into A.',
+    active:'root', vals:{A1a:'4',A1b:'7',A2a:'3',A2b:'9',B1a:'8',B1b:'2',B2a:'6',B2b:'5'}, pruned:[],
+    ab:{root:{a:'-∞',b:'+∞'}}
+  },
+  {
+    title: 'Step 2 — A (MAX) inherits α=−∞, β=+∞. Recurse into A1.',
+    body: 'A is MAX. Inherits α=−∞, β=+∞. Recurse into A1.',
+    active:'A', vals:{A1a:'4',A1b:'7',A2a:'3',A2b:'9',B1a:'8',B1b:'2',B2a:'6',B2b:'5'}, pruned:[],
+    ab:{root:{a:'-∞',b:'+∞'}, A:{a:'-∞',b:'+∞'}}
+  },
+  {
+    title: 'Step 3 — A1 (MIN) evaluates A1a=4. β=4. Then A1b=7. β stays 4. Returns 4.',
+    body: 'A1 is MIN. Inherits α=−∞, β=+∞. A1a=4: β=4. A1b=7: β=min(4,7)=4 (unchanged). A1 returns 4 to A.',
+    active:'A1', vals:{A1a:'4',A1b:'7',A2a:'3',A2b:'9',B1a:'8',B1b:'2',B2a:'6',B2b:'5',A1:'4'}, pruned:[],
+    ab:{root:{a:'-∞',b:'+∞'}, A:{a:'-∞',b:'+∞'}, A1:{a:'-∞',b:'4'}}
+  },
+  {
+    title: 'Step 4 — A (MAX) updates α=max(−∞,4)=4. Recurse into A2.',
+    body: 'A receives 4 from A1. α=max(−∞,4)=4. Check α(4)≥β(+∞)? No. Recurse into A2 passing α=4, β=+∞.',
+    active:'A', vals:{A1a:'4',A1b:'7',A2a:'3',A2b:'9',B1a:'8',B1b:'2',B2a:'6',B2b:'5',A1:'4'}, pruned:[],
+    ab:{root:{a:'-∞',b:'+∞'}, A:{a:'4',b:'+∞'}}
+  },
+  {
+    title: 'Step 5 — A2 (MIN) inherits α=4, β=+∞. Evaluates A2a=3. β=3. Check α(4)≥β(3)? YES — PRUNE A2b!',
+    body: 'A2 is MIN. Inherits α=4, β=+∞. A2a=3: β=min(+∞,3)=3. Check α(4)≥β(3)? YES — PRUNE! A2b=9 is skipped. A2 can only return ≤3, but A (MAX) already has 4 — A will never go lower. A2 returns 3.',
+    active:'A2', vals:{A1a:'4',A1b:'7',A2a:'3',A2b:'9',B1a:'8',B1b:'2',B2a:'6',B2b:'5',A1:'4'}, pruned:['A2b'],
+    ab:{root:{a:'-∞',b:'+∞'}, A:{a:'4',b:'+∞'}, A2:{a:'4',b:'3'}}
+  },
+  {
+    title: 'Step 6 — A takes max(4,3)=4. Returns 4 to root.',
+    body: 'A (MAX) receives 3 from A2. value=max(4,3)=4 (unchanged). All children done. A returns 4 to root.',
+    active:'A', vals:{A1a:'4',A1b:'7',A2a:'3',A2b:'9',B1a:'8',B1b:'2',B2a:'6',B2b:'5',A1:'4',A2:'3',A:'4'}, pruned:['A2b'],
+    ab:{root:{a:'-∞',b:'+∞'}, A:{a:'4',b:'+∞'}}
+  },
+  {
+    title: 'Step 7 — Root (MIN) updates β=min(+∞,4)=4. Recurse into B.',
+    body: 'Root receives 4 from A. Root is MIN: β=min(+∞,4)=4. Check α(−∞)≥β(4)? No. Recurse into B passing α=−∞, β=4.',
+    active:'root', vals:{A1a:'4',A1b:'7',A2a:'3',A2b:'9',B1a:'8',B1b:'2',B2a:'6',B2b:'5',A1:'4',A2:'3',A:'4'}, pruned:['A2b'],
+    ab:{root:{a:'-∞',b:'4'}}
+  },
+  {
+    title: 'Step 8 — B (MAX) inherits α=−∞, β=4. Recurse into B1.',
+    body: 'B is MAX. Inherits α=−∞, β=4. That β=4 is critical — if B finds anything ≥4, root (MIN) will ignore it. Recurse into B1.',
+    active:'B', vals:{A1a:'4',A1b:'7',A2a:'3',A2b:'9',B1a:'8',B1b:'2',B2a:'6',B2b:'5',A1:'4',A2:'3',A:'4'}, pruned:['A2b'],
+    ab:{root:{a:'-∞',b:'4'}, B:{a:'-∞',b:'4'}}
+  },
+  {
+    title: 'Step 9 — B1 (MIN) inherits α=−∞, β=4. Evaluates B1a=8. β=min(4,8)=4.',
+    body: 'B1 is MIN. Inherits α=−∞, β=4. B1a=8: β=min(4,8)=4 (the inherited β is already tighter). Check α(−∞)≥β(4)? No. Continue to B1b.',
+    active:'B1', vals:{A1a:'4',A1b:'7',A2a:'3',A2b:'9',B1a:'8',B1b:'2',B2a:'6',B2b:'5',A1:'4',A2:'3',A:'4'}, pruned:['A2b'],
+    ab:{root:{a:'-∞',b:'4'}, B:{a:'-∞',b:'4'}, B1:{a:'-∞',b:'4'}}
+  },
+  {
+    title: 'Step 10 — B1 evaluates B1b=2. β=min(4,2)=2. Returns 2 to B.',
+    body: 'B1b=2. B1 (MIN): β=min(4,2)=2. All children done. B1 returns 2 to B.',
+    active:'B1', vals:{A1a:'4',A1b:'7',A2a:'3',A2b:'9',B1a:'8',B1b:'2',B2a:'6',B2b:'5',A1:'4',A2:'3',A:'4',B1:'2'}, pruned:['A2b'],
+    ab:{root:{a:'-∞',b:'4'}, B:{a:'-∞',b:'4'}, B1:{a:'-∞',b:'2'}}
+  },
+  {
+    title: 'Step 11 — B (MAX) updates α=max(−∞,2)=2. Check α(2)≥β(4)? No. Recurse into B2.',
+    body: 'B receives 2 from B1. α=max(−∞,2)=2. Check α(2)≥β(4)? No — keep going. Recurse into B2 passing α=2, β=4.',
+    active:'B', vals:{A1a:'4',A1b:'7',A2a:'3',A2b:'9',B1a:'8',B1b:'2',B2a:'6',B2b:'5',A1:'4',A2:'3',A:'4',B1:'2'}, pruned:['A2b'],
+    ab:{root:{a:'-∞',b:'4'}, B:{a:'2',b:'4'}}
+  },
+  {
+    title: 'Step 12 — B2 (MIN) inherits α=2, β=4. Evaluates B2a=6. β=min(4,6)=4.',
+    body: 'B2 is MIN. Inherits α=2, β=4. B2a=6: β=min(4,6)=4 (inherited β is tighter than 6). Check α(2)≥β(4)? No. Continue to B2b.',
+    active:'B2', vals:{A1a:'4',A1b:'7',A2a:'3',A2b:'9',B1a:'8',B1b:'2',B2a:'6',B2b:'5',A1:'4',A2:'3',A:'4',B1:'2'}, pruned:['A2b'],
+    ab:{root:{a:'-∞',b:'4'}, B:{a:'2',b:'4'}, B2:{a:'2',b:'4'}}
+  },
+  {
+    title: 'Step 13 — B2 evaluates B2b=5. β=min(4,5)=4. Returns 4 to B.',
+    body: 'B2b=5. B2 (MIN): β=min(4,5)=4 (unchanged). All children done. B2 returns 4 to B.',
+    active:'B2', vals:{A1a:'4',A1b:'7',A2a:'3',A2b:'9',B1a:'8',B1b:'2',B2a:'6',B2b:'5',A1:'4',A2:'3',A:'4',B1:'2',B2:'4'}, pruned:['A2b'],
+    ab:{root:{a:'-∞',b:'4'}, B:{a:'2',b:'4'}, B2:{a:'2',b:'4'}}
+  },
+  {
+    title: 'Step 14 — B takes max(2,4)=4. Check α(4)≥β(4)? YES — but B is done anyway. Returns 4.',
+    body: 'B (MAX) receives 4 from B2. value=max(2,4)=4, α=4. Check α(4)≥β(4)? YES — the cutoff fires, but B has no more children anyway. B returns 4 to root.',
+    active:'B', vals:{A1a:'4',A1b:'7',A2a:'3',A2b:'9',B1a:'8',B1b:'2',B2a:'6',B2b:'5',A1:'4',A2:'3',A:'4',B1:'2',B2:'4',B:'4'}, pruned:['A2b'],
+    ab:{root:{a:'-∞',b:'4'}, B:{a:'4',b:'4'}}
+  },
+  {
+    title: 'Step 15 — Root takes min(4,4)=4. Final answer: 4.',
+    body: 'Root (MIN) receives 4 from B. β=min(4,4)=4. Final answer is 4. One prune occurred: A2b=9 was skipped because A2 (MIN) already found 3, and A (MAX) had α=4 — MAX would never accept ≤3 when it already has 4.',
+    active:'root', vals:{A1a:'4',A1b:'7',A2a:'3',A2b:'9',B1a:'8',B1b:'2',B2a:'6',B2b:'5',A1:'4',A2:'3',A:'4',B1:'2',B2:'4',B:'4',root:'4'}, pruned:['A2b'],
+    ab:{root:{a:'-∞',b:'4'}}
+  },
+];
+
+let step = 0;
+
+function render() {
+  const s = STEPS[step];
+  const svg = document.getElementById('svg');
+  let html = '';
+
+  for (const [id, nd] of Object.entries(N)) {
+    for (const ch of nd.children) {
+      const cn = N[ch];
+      const ip = s.pruned.includes(ch);
+      html += `<line x1="${nd.x}" y1="${nd.y+nd.r+1}" x2="${cn.x}" y2="${cn.y-(cn.r||15)-1}"
+        stroke="${ip?'#993C1D':'var(--color-border-secondary)'}" stroke-width="1.2"
+        ${ip?'stroke-dasharray="5 4"':''} opacity="${ip?'0.45':'0.7'}"/>`;
+    }
+  }
+
+  for (const [id, nd] of Object.entries(N)) {
+    const ip = s.pruned.includes(id);
+    const ia = s.active === id;
+    const val = s.vals[id];
+    const display = val !== undefined ? val : (nd.leaf || id);
+    const r = nd.r || 0;
+
+    let fill, tfill, op;
+    if (ip)                   { fill='#993C1D'; tfill='#F5C4B3'; op='0.5'; }
+    else if (nd.type==='max') { fill='#185FA5'; tfill='#B5D4F4'; op='0.88'; }
+    else if (nd.type==='min') { fill='#0F6E56'; tfill='#9FE1CB'; op='0.88'; }
+    else                      { fill='#5F5E5A'; tfill='#D3D1C7'; op=val?'0.82':'0.32'; }
+
+    const sc = ia?'#EF9F27':'none';
+    const sw = ia?'2.5':'0';
+    const ab = s.ab[id];
+    const an = ab?(ab.a==='-∞'?-Infinity:Number(ab.a)):-Infinity;
+    const bn = ab?(ab.b==='+∞'?Infinity:Number(ab.b)):Infinity;
+    const cut = ab && an>=bn;
+    const abTxt = ab?`α=${ab.a} β=${ab.b}`:'';
+    const tl = nd.type==='max'?'MAX':nd.type==='min'?'MIN':'';
+    const tf = nd.type==='max'?'#185FA5':'#0F6E56';
+
+    if (nd.type==='leaf') {
+      html += `<g>
+        <rect x="${nd.x-18}" y="${nd.y-15}" width="36" height="30" rx="4"
+          fill="${fill}" opacity="${op}" stroke="${sc}" stroke-width="${sw}"/>
+        <text x="${nd.x}" y="${nd.y+1}" text-anchor="middle" dominant-baseline="central"
+          font-size="12" font-weight="500" fill="${tfill}" font-family="var(--font-sans)">${display}</text>
+      </g>`;
+    } else {
+      html += `<g>
+        ${tl?`<text x="${nd.x}" y="${nd.y-r-7}" text-anchor="middle" font-size="9" fill="${tf}" font-family="var(--font-sans)" font-weight="500">${tl}</text>`:''}
+        <circle cx="${nd.x}" cy="${nd.y}" r="${r}" fill="${fill}" opacity="${op}" stroke="${sc}" stroke-width="${sw}"/>
+        <text x="${nd.x}" y="${nd.y+1}" text-anchor="middle" dominant-baseline="central"
+          font-size="13" font-weight="500" fill="${tfill}" font-family="var(--font-sans)">${display}</text>
+        ${abTxt?`<text x="${nd.x}" y="${nd.y+r+13}" text-anchor="middle" font-size="10"
+          fill="${cut?'#993C1D':'var(--color-text-secondary)'}"
+          font-family="var(--font-sans)" font-weight="${cut?'500':'400'}">${abTxt}</text>`:''}
+      </g>`;
+    }
+  }
+
+  svg.innerHTML = html;
+  document.getElementById('etitle').textContent = s.title;
+  document.getElementById('ebody').textContent = s.body;
+  document.getElementById('ctr').textContent = `Step ${step+1} of ${STEPS.length}`;
+
+  let sr = '';
+  for (const [node, vals] of Object.entries(s.ab||{})) {
+    const an2 = vals.a==='-∞'?-Infinity:Number(vals.a);
+    const bn2 = vals.b==='+∞'?Infinity:Number(vals.b);
+    const cut2 = an2>=bn2;
+    sr += `<div style="background:var(--color-background-secondary);border:${cut2?'1px solid #993C1D':'0.5px solid var(--color-border-tertiary)'};border-radius:var(--border-radius-md);padding:6px 12px;font-size:12px;">
+      <span style="font-weight:500;color:var(--color-text-primary);">${node}</span>
+      <span style="margin-left:8px;color:#185FA5;font-weight:500;">α = ${vals.a}</span>
+      <span style="margin-left:8px;color:#0F6E56;font-weight:500;">β = ${vals.b}</span>
+      ${cut2?'<span style="margin-left:8px;color:#993C1D;font-weight:500;">α ≥ β → PRUNE</span>':''}
+    </div>`;
+  }
+  document.getElementById('srow').innerHTML = sr || '<span style="font-size:12px;color:var(--color-text-tertiary);">No active α/β state</span>';
+}
+
+function go(d) {
+  if (d===-99) step=0;
+  else step=Math.max(0,Math.min(STEPS.length-1,step+d));
+  render();
+}
+render();
+</script>
+
+</body>
+</html>

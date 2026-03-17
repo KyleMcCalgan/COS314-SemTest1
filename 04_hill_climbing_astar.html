@@ -8,6 +8,7 @@
 <style>
   :root { --accent: #7aa030; --accent2: #4a90a8; --accent3: #b87038; }
   .hero::before { content: '06'; }
+  .demo-frame { width: 100%; border: 1px solid var(--border); border-radius: 6px; display: block; margin: 16px 0; overflow: hidden; }
 </style>
 </head>
 <body>
@@ -106,6 +107,10 @@
       </div>
     </div>
 
+    <h3>Interactive Demo: Best First Search Tree</h3>
+    <p>Step through Best First Search on a weighted tree. Watch how the algorithm always expands the globally cheapest h(n) node from the OPEN list.</p>
+    <iframe class="demo-frame" src="demos/best_first_search_tree.html" title="Best First Search Tree" style="height:500px"></iframe>
+
     <div class="grid2">
       <div class="card blue">
         <strong>g(n)</strong>
@@ -163,6 +168,10 @@ A* always expands the node with LOWEST f(n) value from OPEN list</div>
       h(n) = tiles out of place is admissible because each misplaced tile needs AT LEAST 1 move to reach its goal — we never overestimate. Manhattan distance is even better (more informed) but also admissible.
     </div>
 
+    <h3>Interactive Demo: A* Search Tree</h3>
+    <p>Step through A* on a tree with g and h values shown at each node. See how f(n) = g(n) + h(n) determines expansion order, and compare against Best First.</p>
+    <iframe class="demo-frame" src="demos/astar_tree_with_table.html" title="A* Search Tree" style="height:540px"></iframe>
+
     <h3>A* Advantages and Disadvantages</h3>
     <table>
       <tr><th>Advantages</th><th>Disadvantages</th></tr>
@@ -207,5 +216,12 @@ A* always expands the node with LOWEST f(n) value from OPEN list</div>
 
   <div class="nav-hint">COS314 Study Pack · Topic 06 of 10 · Hill Climbing & A*</div>
 </div>
+<script>
+document.querySelectorAll('iframe.demo-frame').forEach(f => {
+  f.addEventListener('load', function() {
+    try { this.style.height = this.contentDocument.documentElement.scrollHeight + 'px'; } catch(e) {}
+  });
+});
+</script>
 </body>
 </html>
